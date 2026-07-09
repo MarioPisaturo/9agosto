@@ -1,10 +1,5 @@
 .countdown-debug-panel {
-  position: fixed;
-  bottom: 5.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  width: min(96vw, 520px);
+  width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 14px;
   background: rgba(20, 20, 20, 0.92);
@@ -68,7 +63,22 @@
     }
   }
 
-  @media (max-width: 768px) {
-    bottom: 6.5rem;
+  .debug-section {
+    & + & {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+  }
+
+  .debug-btn.maint.active {
+    background: #c0392b;
+    border-color: #c0392b;
+    color: #fff;
+  }
+
+  .debug-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 }

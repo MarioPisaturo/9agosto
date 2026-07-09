@@ -57,6 +57,19 @@ In produzione l'app usa **Netlify Functions** come proxy: il token resta solo su
 
 I token "Generate" dalla console (`sl.u...`) scadono dopo ~4 ore. Il refresh token si rinnova automaticamente sul server.
 
+### Modalità manutenzione (solo Countdown)
+
+Se Dropbox o le foto danno problemi, puoi mettere il sito in modalità ridotta:
+
+1. Netlify → **Environment variables** → aggiungi `VITE_MAINTENANCE_MODE` = `true`
+2. **Trigger deploy**
+
+Il sito mostrerà solo il Countdown: niente tab, niente Dropbox, niente galleria/upload/stories. Qualsiasi URL (`/gallery`, `/stories`, …) reindirizza alla home.
+
+Per ripristinare: `VITE_MAINTENANCE_MODE=false` (o rimuovi la variabile) e redeploy.
+
+**Nota:** le variabili `VITE_*` sono incluse nella build; serve un nuovo deploy dopo ogni cambio.
+
 ### Routing SPA
 
 Il file `netlify.toml` e `public/_redirects` gestiscono già le route React (`/gallery`, `/upload`, ecc.).

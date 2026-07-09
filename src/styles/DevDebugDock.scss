@@ -1,0 +1,63 @@
+.dev-debug-dock {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: min(92vw, 300px);
+  max-height: calc(100vh - 20px);
+  overflow-y: auto;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.cache-debug-panel {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: monospace;
+
+  &__toggle {
+    cursor: pointer;
+    margin-bottom: 5px;
+  }
+
+  &__actions {
+    margin-top: 10px;
+  }
+
+  &__btn {
+    background: #444;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    margin-right: 5px;
+    cursor: pointer;
+
+    &--danger {
+      background: #d44;
+      margin-right: 0;
+    }
+  }
+
+  &__files {
+    margin-top: 10px;
+    max-height: 100px;
+    overflow: auto;
+  }
+
+  &__file {
+    font-size: 10px;
+    opacity: 0.8;
+  }
+}

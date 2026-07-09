@@ -155,7 +155,7 @@ const Countdown: React.FC<CountdownProps> = ({
         <div className="celebration-message">
           <p className="celebration-lead">
             {activePastWeddingDay
-              ? "Il nostro sì è stato detto. Rivivi i momenti più belli insieme a noi."
+              ? "Rivivi i momenti più belli insieme a noi."
               : "Il momento è arrivato! Festeggia con noi e condividi i tuoi scatti."}
           </p>
           <WeddingLocations

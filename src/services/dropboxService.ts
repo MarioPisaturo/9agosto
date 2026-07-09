@@ -361,6 +361,24 @@ export class DropboxService {
   }
 
   /**
+   * Restituisce l'URL blob dalla cache se ancora valido (sincrono, senza rete).
+   */
+  static getCachedImageBlobUrl(
+    filePath: string,
+    options: { variant?: "full" | "display" | "thumb" } = {}
+  ): string | null {
+    const variant = options.variant ?? "display";
+    const cacheKey = variant === "full" ? filePath : `${filePath}:${variant}`;
+    const cached = this.blobCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < this.BLOB_CACHE_DURATION) {
+      return cached.url;
+    }
+
+    return null;
+  }
+
+  /**
    * Scarica un'immagine da Dropbox e restituisce un blob URL (con cache)
    */
   static async getImageBlob(
@@ -372,13 +390,14 @@ export class DropboxService {
 
     try {
       // Controlla se abbiamo già questa immagine in cache
+      const cachedUrl = this.getCachedImageBlobUrl(filePath, { variant });
+      if (cachedUrl) {
+        console.log(`📦 Cache hit per: ${cacheKey}`);
+        return cachedUrl;
+      }
+
       const cached = this.blobCache.get(cacheKey);
       const now = Date.now();
-
-      if (cached && now - cached.timestamp < this.BLOB_CACHE_DURATION) {
-        console.log(`📦 Cache hit per: ${cacheKey}`);
-        return cached.url;
-      }
 
       // Se la cache è scaduta, rimuovi l'entry e revoca il blob URL
       if (cached) {

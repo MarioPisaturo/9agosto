@@ -8,12 +8,14 @@ interface LayoutProps {
   photoCount: number;
   canUpload: boolean;
   children?: React.ReactNode;
+  maintenanceMode?: boolean;
 }
 
 const Layout: React.FC<LayoutProps> = ({
   photoCount,
   canUpload,
   children,
+  maintenanceMode = false,
 }) => {
   const location = useLocation();
   const isFullscreen = hasFullscreenParam();
@@ -82,13 +84,16 @@ const Layout: React.FC<LayoutProps> = ({
     isMobile && (isFullscreen || isBrowserFullscreen);
 
   return (
-    <div className={`app ${shouldHideNavigation ? "fullscreen-mobile" : ""}`}>
-      {/* Banner per problemi con il token - sempre visibile */}
-      <TokenStatusBanner />
+    <div
+      className={`app ${shouldHideNavigation ? "fullscreen-mobile" : ""} ${
+        maintenanceMode ? "app--maintenance" : ""
+      }`}
+    >
+      {!maintenanceMode && <TokenStatusBanner />}
 
       <main className="app-main">{children || <Outlet />}</main>
 
-      {!shouldHideNavigation && (
+      {!maintenanceMode && !shouldHideNavigation && (
         <Navigation
           activeSection={getActiveSection()}
           photoCount={photoCount}
@@ -96,8 +101,7 @@ const Layout: React.FC<LayoutProps> = ({
         />
       )}
 
-      {/* Wedding rings floating animation - nascondi anche questi in fullscreen */}
-      {!shouldHideNavigation && (
+      {!maintenanceMode && !shouldHideNavigation && (
         <div className="floating-rings">
           <div className="ring ring-1">💍</div>
           <div className="ring ring-2">💍</div>

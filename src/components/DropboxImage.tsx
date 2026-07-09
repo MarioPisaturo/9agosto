@@ -15,6 +15,13 @@ interface DropboxImageProps {
   onLoadStart?: () => void;
 }
 
+function readCachedSrc(
+  filePath: string,
+  variant: "full" | "display" | "thumb"
+): string {
+  return DropboxService.getCachedImageBlobUrl(filePath, { variant }) ?? "";
+}
+
 const DropboxImage: React.FC<DropboxImageProps> = ({
   filePath,
   alt,
@@ -28,8 +35,10 @@ const DropboxImage: React.FC<DropboxImageProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [shouldLoad, setShouldLoad] = useState(loading === "eager");
-  const [imageSrc, setImageSrc] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(loading === "eager");
+  const [imageSrc, setImageSrc] = useState(() => readCachedSrc(filePath, variant));
+  const [isLoading, setIsLoading] = useState(
+    () => loading === "eager" && !readCachedSrc(filePath, variant)
+  );
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
@@ -66,10 +75,24 @@ const DropboxImage: React.FC<DropboxImageProps> = ({
     let isMounted = true;
 
     const loadImage = async () => {
+      const cachedUrl = readCachedSrc(filePath, variant);
+      if (cachedUrl) {
+        if (isMounted) {
+          setImageSrc(cachedUrl);
+          setIsLoading(false);
+          setError("");
+          onLoadComplete?.();
+        }
+        return;
+      }
+
       try {
-        setIsLoading(true);
-        setError("");
-        onLoadStart?.();
+        if (isMounted) {
+          setImageSrc("");
+          setIsLoading(true);
+          setError("");
+          onLoadStart?.();
+        }
 
         const blobUrl = await DropboxService.getImageBlob(filePath, { variant });
 
@@ -120,7 +143,7 @@ const DropboxImage: React.FC<DropboxImageProps> = ({
     );
   }
 
-  if (isLoading) {
+  if (isLoading && !imageSrc) {
     return (
       <div
         ref={containerRef}
@@ -147,7 +170,7 @@ const DropboxImage: React.FC<DropboxImageProps> = ({
     );
   }
 
-  if (error) {
+  if (error && !imageSrc) {
     return (
       <div
         ref={containerRef}
@@ -164,6 +187,10 @@ const DropboxImage: React.FC<DropboxImageProps> = ({
         </div>
       </div>
     );
+  }
+
+  if (!imageSrc) {
+    return null;
   }
 
   return (

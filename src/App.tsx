@@ -22,34 +22,51 @@ import {
   GALLERY_INITIAL_PAGE_SIZE,
   GALLERY_LOAD_MORE_SIZE,
 } from "./config/gallery";
-import CacheDebug from "./components/CacheDebug";
+import { isMaintenanceMode } from "./config/maintenanceMode";
+import DevDebugDock from "./components/DevDebugDock";
 import "./styles/App.scss";
 
-// Componente wrapper per la logica dell'app
+const weddingInfo: WeddingInfo = {
+  brideName: "Annachiara",
+  groomName: "Mario",
+  weddingDate: parseItalyDateTime("2026-08-09", "10:30"),
+  church: "Chiesa di San Sebastiano Martire, Valle Agricola",
+  churchTime: "10:30",
+  venue: "Villa Regina, Grottaminarda",
+};
+
+const MaintenanceAppContent: React.FC = () => (
+  <Layout photoCount={0} canUpload={false} maintenanceMode>
+    <DevDebugDock />
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <CountdownPage
+            weddingInfo={weddingInfo}
+            photos={[]}
+            isLoadingPhotos={false}
+            onLoadSamplePhotos={() => {}}
+            maintenanceMode
+          />
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  </Layout>
+);
+
 const AppContent: React.FC = () => {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(true);
   const [hasMorePhotos, setHasMorePhotos] = useState(false);
-
   const [totalPhotosCount, setTotalPhotosCount] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const navigate = useNavigate();
   const { canUpload } = useUploadAccess();
 
-  // Gestione automatica della cache
   useCacheManager();
 
-  // Wedding information - customize these values
-  const weddingInfo: WeddingInfo = {
-    brideName: "Annachiara",
-    groomName: "Mario",
-    weddingDate: parseItalyDateTime("2026-08-09", "10:30"),
-    church: "Chiesa di San Sebastiano Martire, Valle Agricola",
-    churchTime: "10:30",
-    venue: "Villa Regina, Grottaminarda",
-  };
-
-  // Load initial photos from Dropbox on component mount
   useEffect(() => {
     const loadInitialPhotos = async () => {
       setIsLoadingPhotos(true);
@@ -59,7 +76,6 @@ const AppContent: React.FC = () => {
           0
         );
 
-        // Converti le foto di Dropbox nel formato dell'app
         const convertedPhotos: Photo[] = result.photos.map((photo) => ({
           id: photo.public_id,
           url: photo.secure_url,
@@ -77,7 +93,6 @@ const AppContent: React.FC = () => {
         setTotalPhotosCount(result.totalCount);
       } catch (error) {
         console.error("Errore nel caricamento delle foto da Dropbox:", error);
-        // Fallback: carica foto demo locali in caso di errore
         setPhotos([]);
         setHasMorePhotos(false);
         setTotalPhotosCount(0);
@@ -93,10 +108,8 @@ const AppContent: React.FC = () => {
     setPhotos((prevPhotos) => [newPhoto, ...prevPhotos]);
     setTotalPhotosCount((prev) => prev + 1);
 
-    // Show a success message and optionally switch to stories
     setTimeout(() => {
       if (photos.length === 0) {
-        // If it's the first photo, navigate to stories
         navigate("/stories");
       }
     }, 1000);
@@ -113,7 +126,6 @@ const AppContent: React.FC = () => {
         currentOffset
       );
 
-      // Converti le nuove foto di Dropbox nel formato dell'app
       const newConvertedPhotos: Photo[] = result.photos.map((photo) => ({
         id: photo.public_id,
         url: photo.secure_url,
@@ -126,7 +138,6 @@ const AppContent: React.FC = () => {
         bytes: photo.bytes,
       }));
 
-      // Aggiungi le nuove foto a quelle esistenti
       setPhotos((prevPhotos) => [...prevPhotos, ...newConvertedPhotos]);
       setHasMorePhotos(result.hasMore);
     } catch (error) {
@@ -143,8 +154,7 @@ const AppContent: React.FC = () => {
 
   return (
     <Layout photoCount={photos.length} canUpload={canUpload}>
-      {/* Debug della cache solo in development */}
-      <CacheDebug isVisible={import.meta.env.DEV} />
+      <DevDebugDock />
 
       <Routes>
         <Route
@@ -194,11 +204,18 @@ const AppContent: React.FC = () => {
   );
 };
 
-// Componente App principale con Router
+function AppRouter() {
+  if (isMaintenanceMode()) {
+    return <MaintenanceAppContent />;
+  }
+
+  return <AppContent />;
+}
+
 function App() {
   return (
     <Router>
-      <AppContent />
+      <AppRouter />
     </Router>
   );
 }

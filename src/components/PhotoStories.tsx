@@ -3,6 +3,7 @@ import type { Photo } from "../types";
 import { formatItalyPhotoTimestamp } from "../utils/dateTime";
 import { addFullscreenParam } from "../utils/fullscreenUtils";
 import { useFullscreenRoute } from "../hooks/useFullscreenRoute";
+import { DropboxService } from "../services/dropboxService";
 import DropboxImage from "./DropboxImage";
 import "../styles/PhotoStories.scss";
 import "../styles/DropboxImage.scss";
@@ -65,7 +66,6 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({
 
     // Aggiungi effetto di transizione
     setIsTransitioning(true);
-    setIsCurrentPhotoLoading(true); // Ferma il countdown durante il cambio foto
 
     setTimeout(() => {
       setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
@@ -123,12 +123,28 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({
     isCurrentPhotoLoading,
   ]);
 
+  // Precarica foto adiacenti per passaggi istantanei
+  useEffect(() => {
+    if (photos.length === 0) return;
+
+    const prefetch = (index: number) => {
+      const photo = photos[index];
+      if (photo?.publicId) {
+        void DropboxService.getImageBlob(photo.publicId, { variant: "display" });
+      }
+    };
+
+    prefetch((currentPhotoIndex + 1) % photos.length);
+    if (photos.length > 1) {
+      prefetch((currentPhotoIndex - 1 + photos.length) % photos.length);
+    }
+  }, [currentPhotoIndex, photos]);
+
   const prevPhoto = useCallback(() => {
     if (photos.length === 0) return;
 
     // Aggiungi effetto di transizione
     setIsTransitioning(true);
-    setIsCurrentPhotoLoading(true); // Ferma il countdown durante il cambio foto
 
     setTimeout(() => {
       setCurrentPhotoIndex(
@@ -587,11 +603,10 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({
             )}
           </div>
 
-          {/* Indicatore di caricamento foto */}
+          {/* Spinner solo al primo caricamento di una foto non in cache */}
           {isCurrentPhotoLoading && (
-            <div className="photo-loading-indicator">
+            <div className="photo-loading-indicator" aria-live="polite">
               <div className="loading-spinner"></div>
-              <span>Caricando foto...</span>
             </div>
           )}
         </div>
