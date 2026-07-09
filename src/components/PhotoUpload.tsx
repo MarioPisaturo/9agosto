@@ -318,17 +318,6 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
           <li>👥 Includi gli ospiti nelle foto</li>
           <li>🎉 Documenta i dettagli della festa</li>
           <li>💝 Condividi i momenti più belli</li>
-          <li>
-            🤖 <strong>Compressione automatica attiva</strong>
-          </li>
-          <li>
-            🗜️ <strong>Le foto vengono ottimizzate automaticamente</strong>
-          </li>
-          {galleryEnabled && (
-            <li>
-              📱 <strong>Carica foto di qualsiasi dimensione</strong>
-            </li>
-          )}
           {!galleryEnabled && (
             <li>
               📷 <strong>Solo foto scattate al momento</strong>
@@ -336,6 +325,9 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
           )}
           <li>
             ☁️ <strong>Le foto sono condivise con tutti gli ospiti</strong>
+          </li>
+          <li>
+            🔒 <strong>Una volta caricate, le foto non possono essere modificate/eliminate</strong>
           </li>
         </ul>
       </div>
