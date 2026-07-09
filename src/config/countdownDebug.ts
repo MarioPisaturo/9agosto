@@ -12,9 +12,23 @@ const VALID_PHASES: CountdownDebugPhase[] = [
   "after",
 ];
 
-export function isCountdownDebugEnabled(): boolean {
+/** Pannello UI debug: solo dev o con VITE_COUNTDOWN_DEBUG_ENABLED=true */
+export function isCountdownDebugPanelEnabled(): boolean {
   if (import.meta.env.DEV) return true;
   return import.meta.env.VITE_COUNTDOWN_DEBUG_ENABLED === "true";
+}
+
+/** @deprecated Usa isCountdownDebugPanelEnabled */
+export function isCountdownDebugEnabled(): boolean {
+  return isCountdownDebugPanelEnabled();
+}
+
+export function getCountdownDebugPhaseFromSearch(
+  search: string
+): CountdownDebugPhase | null {
+  return parseCountdownDebugPhase(
+    new URLSearchParams(search).get(COUNTDOWN_DEBUG_PARAM)
+  );
 }
 
 export function parseCountdownDebugPhase(

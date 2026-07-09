@@ -3,26 +3,24 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   COUNTDOWN_DEBUG_PARAM,
   getCountdownDebugPhaseFromEnv,
-  isCountdownDebugEnabled,
-  parseCountdownDebugPhase,
+  getCountdownDebugPhaseFromSearch,
+  isCountdownDebugPanelEnabled,
   type CountdownDebugPhase,
 } from "../config/countdownDebug";
 
 export function useCountdownDebug() {
   const location = useLocation();
   const navigate = useNavigate();
-  const enabled = isCountdownDebugEnabled();
+  const panelEnabled = isCountdownDebugPanelEnabled();
 
   const readPhase = useCallback((): CountdownDebugPhase | null => {
-    if (!enabled) return null;
-
-    const fromUrl = parseCountdownDebugPhase(
-      new URLSearchParams(location.search).get(COUNTDOWN_DEBUG_PARAM)
-    );
+    const fromUrl = getCountdownDebugPhaseFromSearch(location.search);
     if (fromUrl) return fromUrl;
 
+    if (!panelEnabled) return null;
+
     return getCountdownDebugPhaseFromEnv();
-  }, [enabled, location.search]);
+  }, [panelEnabled, location.search]);
 
   const [debugPhase, setDebugPhaseState] = useState<CountdownDebugPhase | null>(
     readPhase
@@ -34,8 +32,6 @@ export function useCountdownDebug() {
 
   const setDebugPhase = useCallback(
     (phase: CountdownDebugPhase | null) => {
-      if (!enabled) return;
-
       const params = new URLSearchParams(location.search);
 
       if (phase) {
@@ -50,13 +46,15 @@ export function useCountdownDebug() {
       });
       setDebugPhaseState(phase);
     },
-    [enabled, location.pathname, location.search, navigate]
+    [location.pathname, location.search, navigate]
   );
 
   return {
-    enabled,
+    /** Pannello UI visibile solo in dev o con VITE_COUNTDOWN_DEBUG_ENABLED */
+    enabled: panelEnabled,
     debugPhase,
     setDebugPhase,
-    isActive: enabled && debugPhase !== null,
+    /** True se c'è una fase debug attiva (anche via ?countdown_debug= in produzione) */
+    isActive: debugPhase !== null,
   };
 }

@@ -41,7 +41,8 @@ const CountdownDebugPanel: React.FC<CountdownDebugPanelProps> = ({
         </button>
       </div>
       <p className="debug-hint">
-        Oppure URL: <code>?countdown_debug=before|today|celebration|after</code>
+        URL (funziona anche in produzione):{" "}
+        <code>?countdown_debug=before|today|celebration|after</code>
       </p>
     </div>
   );

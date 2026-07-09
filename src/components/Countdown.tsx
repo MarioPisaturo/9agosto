@@ -47,8 +47,8 @@ const WeddingLocations: React.FC<{
     <div className={`wedding-locations ${className}`.trim()}>
       {church && (
         <p className="wedding-location church">
-          Chiesa: {formatChurchLabel(church)}
-          {churchTime ? ` ${churchTime}` : ""}
+          📍Chiesa di {formatChurchLabel(church)} 
+          {churchTime ? ` - ore ${churchTime}` : ""}
         </p>
       )}
       {venue && (
