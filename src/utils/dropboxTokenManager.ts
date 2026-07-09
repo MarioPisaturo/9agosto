@@ -20,18 +20,28 @@ export class DropboxTokenManager {
    * Verifica lo stato del token corrente
    */
   static async checkTokenStatus(): Promise<TokenStatus> {
-    if (!DROPBOX_CONFIG.ACCESS_TOKEN) {
-      return {
-        isValid: false,
-        isExpiring: false,
-        error: "Token non configurato",
-        tokenType: "unknown",
-      };
-    }
-
     try {
       if (USE_DROPBOX_PROXY) {
         const response = await fetch(DROPBOX_PROXY.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          let error = errorText;
+          try {
+            const data = JSON.parse(errorText);
+            error = data.error || errorText;
+          } catch {
+            // usa errorText così com'è
+          }
+
+          return {
+            isValid: false,
+            isExpiring: false,
+            error,
+            tokenType: "unknown",
+          };
+        }
+
         const data = await response.json();
 
         return {
@@ -39,6 +49,15 @@ export class DropboxTokenManager {
           isExpiring: false,
           tokenType: "app_token",
           error: data.isValid ? undefined : data.error,
+        };
+      }
+
+      if (!DROPBOX_CONFIG.ACCESS_TOKEN) {
+        return {
+          isValid: false,
+          isExpiring: false,
+          error: "Token non configurato nel file .env locale",
+          tokenType: "unknown",
         };
       }
 
@@ -110,6 +129,22 @@ export class DropboxTokenManager {
   static getTokenRenewalInstructions(
     tokenType: TokenStatus["tokenType"]
   ): string {
+    if (USE_DROPBOX_PROXY) {
+      return `
+🔄 Configura il token Dropbox su Netlify:
+
+1. Vai su Netlify → Site settings → Environment variables
+2. Aggiungi:
+   DROPBOX_ACCESS_TOKEN = il_tuo_token_sl.u.xxx
+   DROPBOX_FOLDER = /wedding-app-09-08-26
+3. NON usare VITE_DROPBOX_ACCESS_TOKEN in produzione
+4. Fai un nuovo deploy (Deploys → Trigger deploy)
+
+Per generare il token:
+https://www.dropbox.com/developers/apps → Permissions → Submit → Generate token
+      `;
+    }
+
     if (tokenType === "app_token") {
       return `
 🔄 Il tuo App Token ha problemi. Per risolverlo:

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { DropboxTokenManager } from "../utils/dropboxTokenManager";
 import type { TokenStatus } from "../utils/dropboxTokenManager";
+import { USE_DROPBOX_PROXY } from "../config/runtime";
 import "../styles/TokenStatusBanner.scss";
 
 const TokenStatusBanner: React.FC = () => {
@@ -9,25 +10,32 @@ const TokenStatusBanner: React.FC = () => {
   const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
-    // Controlla lo stato del token all'avvio
+    // In produzione ignora eventuali errori salvati in locale da sessioni dev
+    if (USE_DROPBOX_PROXY) {
+      DropboxTokenManager.clearSavedTokenStatus();
+    }
+
     const checkStatus = async () => {
       const status = await DropboxTokenManager.checkTokenStatus();
       if (!status.isValid) {
         setTokenStatus(status);
         setIsVisible(true);
+      } else {
+        setIsVisible(false);
+        DropboxTokenManager.clearSavedTokenStatus();
       }
     };
 
     checkStatus();
 
-    // Controlla anche lo stato salvato
-    const savedStatus = DropboxTokenManager.getSavedTokenStatus();
-    if (savedStatus && !savedStatus.isValid) {
-      setTokenStatus(savedStatus);
-      setIsVisible(true);
+    if (!USE_DROPBOX_PROXY) {
+      const savedStatus = DropboxTokenManager.getSavedTokenStatus();
+      if (savedStatus && !savedStatus.isValid) {
+        setTokenStatus(savedStatus);
+        setIsVisible(true);
+      }
     }
 
-    // Controlla periodicamente (ogni 30 minuti)
     const interval = setInterval(checkStatus, 30 * 60 * 1000);
 
     return () => clearInterval(interval);
