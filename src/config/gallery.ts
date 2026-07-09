@@ -6,3 +6,6 @@ export const GALLERY_LOAD_MORE_SIZE = 12;
 
 /** Margine IntersectionObserver per precaricare leggermente prima del viewport */
 export const GALLERY_IMAGE_PRELOAD_MARGIN = "300px";
+
+/** In stories, carica altre foto quando mancano N scatti alla fine del batch */
+export const STORIES_LOAD_MORE_THRESHOLD = 5;

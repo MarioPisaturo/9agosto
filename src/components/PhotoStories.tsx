@@ -4,18 +4,27 @@ import { formatItalyPhotoTimestamp } from "../utils/dateTime";
 import { addFullscreenParam } from "../utils/fullscreenUtils";
 import { useFullscreenRoute } from "../hooks/useFullscreenRoute";
 import { DropboxService } from "../services/dropboxService";
+import { STORIES_LOAD_MORE_THRESHOLD } from "../config/gallery";
 import DropboxImage from "./DropboxImage";
 import "../styles/PhotoStories.scss";
 import "../styles/DropboxImage.scss";
 
 interface PhotoStoriesProps {
   photos: Photo[];
+  hasMorePhotos: boolean;
   isLoadingPhotos: boolean;
+  isLoadingMore: boolean;
+  totalPhotosCount: number;
+  onLoadMore: () => void;
 }
 
 const PhotoStories: React.FC<PhotoStoriesProps> = ({
   photos,
+  hasMorePhotos,
   isLoadingPhotos,
+  isLoadingMore,
+  totalPhotosCount,
+  onLoadMore,
 }) => {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -60,19 +69,36 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({
 
   const STORY_DURATION = 5000; // 5 seconds per photo
   const PROGRESS_UPDATE_INTERVAL = 50; // Update progress every 50ms
+  const pendingAdvanceRef = useRef(false);
+  const photosLengthRef = useRef(photos.length);
+
+  const maybeLoadMore = useCallback(() => {
+    if (hasMorePhotos && !isLoadingMore) {
+      onLoadMore();
+    }
+  }, [hasMorePhotos, isLoadingMore, onLoadMore]);
 
   const nextPhoto = useCallback(() => {
     if (photos.length === 0) return;
 
-    // Aggiungi effetto di transizione
     setIsTransitioning(true);
 
     setTimeout(() => {
-      setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
+      setCurrentPhotoIndex((prev) => {
+        if (prev >= photos.length - 1) {
+          if (hasMorePhotos) {
+            pendingAdvanceRef.current = true;
+            maybeLoadMore();
+            return prev;
+          }
+          return 0;
+        }
+        return prev + 1;
+      });
       setProgress(0);
       setIsTransitioning(false);
-    }, 150); // Durata dell'effetto di transizione
-  }, [photos.length]);
+    }, 150);
+  }, [photos.length, hasMorePhotos, maybeLoadMore]);
 
   const startStory = useCallback(() => {
     setProgress(0);
@@ -139,6 +165,40 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({
       prefetch((currentPhotoIndex - 1 + photos.length) % photos.length);
     }
   }, [currentPhotoIndex, photos]);
+
+  // Carica altre foto avvicinandosi alla fine del batch corrente
+  useEffect(() => {
+    if (photos.length === 0 || !hasMorePhotos || isLoadingMore) return;
+
+    const threshold = Math.max(0, photos.length - STORIES_LOAD_MORE_THRESHOLD);
+    if (currentPhotoIndex >= threshold) {
+      maybeLoadMore();
+    }
+  }, [
+    currentPhotoIndex,
+    photos.length,
+    hasMorePhotos,
+    isLoadingMore,
+    maybeLoadMore,
+  ]);
+
+  // Dopo il load, avanza se l'utente era in attesa sull'ultima foto
+  useEffect(() => {
+    const previousLength = photosLengthRef.current;
+    photosLengthRef.current = photos.length;
+
+    if (
+      pendingAdvanceRef.current &&
+      photos.length > previousLength &&
+      currentPhotoIndex < photos.length - 1
+    ) {
+      pendingAdvanceRef.current = false;
+      setCurrentPhotoIndex((prev) =>
+        prev >= previousLength - 1 ? prev + 1 : prev
+      );
+      setProgress(0);
+    }
+  }, [photos.length, currentPhotoIndex]);
 
   const prevPhoto = useCallback(() => {
     if (photos.length === 0) return;
@@ -336,7 +396,7 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({
     };
   }, [isFullscreen, showControlsTemporarily]);
 
-  // Aggiorna automaticamente la pagina delle thumbnail quando cambia la foto corrente
+  // Aggiorna pagina thumbnail; carica altre foto sull'ultima pagina
   useEffect(() => {
     if (photos.length > THUMBNAILS_PER_PAGE) {
       const requiredPage = Math.floor(currentPhotoIndex / THUMBNAILS_PER_PAGE);
@@ -345,6 +405,15 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({
       }
     }
   }, [currentPhotoIndex, thumbnailPage, THUMBNAILS_PER_PAGE, photos.length]);
+
+  useEffect(() => {
+    if (photos.length === 0 || !hasMorePhotos || isLoadingMore) return;
+
+    const lastPage = Math.ceil(photos.length / THUMBNAILS_PER_PAGE) - 1;
+    if (thumbnailPage >= lastPage) {
+      maybeLoadMore();
+    }
+  }, [thumbnailPage, photos.length, hasMorePhotos, isLoadingMore, maybeLoadMore]);
 
   const handlePhotoClick = (event: React.MouseEvent) => {
     if (touchHandledRef.current) return;
@@ -522,11 +591,12 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({
             >
               {isFullscreen ? "⤵️" : "⤴️"}
             </button>
-            {/*}
             <span className="photo-counter">
-              {currentPhotoIndex + 1} / {photos.length}
+              {currentPhotoIndex + 1} /{" "}
+              {totalPhotosCount > photos.length
+                ? totalPhotosCount
+                : photos.length}
             </span>
-            */}
           </div>
         )}
       </div>
@@ -632,14 +702,21 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({
             <button
               className="nav-btn next-btn"
               onClick={nextPhoto}
-              disabled={photos.length <= 1}
+              disabled={photos.length <= 1 && !hasMorePhotos}
             >
               Successiva →
             </button>
           </div>
 
+          {isLoadingMore && (
+            <p className="stories-loading-more">Caricando altre foto...</p>
+          )}
+
           <div className="photos-grid-preview">
-            <h3>Tutte le foto ({photos.length})</h3>
+            <h3>
+              Tutte le foto ({photos.length}
+              {totalPhotosCount > photos.length ? ` di ${totalPhotosCount}` : ""})
+            </h3>
 
             {/* Paginazione thumbnail */}
             {photos.length > THUMBNAILS_PER_PAGE && (
@@ -659,17 +736,21 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({
                 </span>
                 <button
                   className="pagination-btn"
-                  onClick={() =>
+                  onClick={() => {
+                    const lastPage =
+                      Math.ceil(photos.length / THUMBNAILS_PER_PAGE) - 1;
+                    if (thumbnailPage >= lastPage) {
+                      maybeLoadMore();
+                      return;
+                    }
                     setThumbnailPage(
-                      Math.min(
-                        Math.ceil(photos.length / THUMBNAILS_PER_PAGE) - 1,
-                        thumbnailPage + 1
-                      )
-                    )
-                  }
+                      Math.min(lastPage, thumbnailPage + 1)
+                    );
+                  }}
                   disabled={
                     thumbnailPage >=
-                    Math.ceil(photos.length / THUMBNAILS_PER_PAGE) - 1
+                      Math.ceil(photos.length / THUMBNAILS_PER_PAGE) - 1 &&
+                    !hasMorePhotos
                   }
                 >
                   Successive →
@@ -695,9 +776,7 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({
                       onClick={() => {
                         setCurrentPhotoIndex(absoluteIndex);
                         setProgress(0);
-                        setIsCurrentPhotoLoading(true); // Ferma il countdown durante il cambio foto manuale
 
-                        // Aggiorna la pagina delle thumbnail se necessario
                         const newPage = Math.floor(
                           absoluteIndex / THUMBNAILS_PER_PAGE
                         );

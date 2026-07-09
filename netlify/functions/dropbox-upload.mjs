@@ -6,6 +6,11 @@ import {
   getDropboxFolder,
   jsonResponse,
 } from "./_dropbox.mjs";
+import {
+  addPhotoToManifest,
+  invalidateManifestCache,
+  manifestEntryFromUpload,
+} from "./_manifest.mjs";
 
 export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
@@ -57,6 +62,17 @@ export async function handler(event) {
     }
 
     const uploadedFile = await uploadResponse.json();
+
+    const manifestEntry = manifestEntryFromUpload(uploadedFile, {
+      description,
+      uploadedBy,
+      uploadedAt: new Date().toISOString(),
+    });
+
+    await addPhotoToManifest(folder, manifestEntry).catch((error) => {
+      console.warn("Impossibile aggiornare photos-manifest.json:", error);
+    });
+    invalidateManifestCache();
 
     if (description || uploadedBy) {
       const metadata = {

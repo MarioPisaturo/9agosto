@@ -1,12 +1,9 @@
 import {
-  API_BASE_URL,
   corsHeaders,
-  dropboxApiFetch,
   getDropboxFolder,
   jsonResponse,
 } from "./_dropbox.mjs";
-
-const SUPPORTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+import { getPaginatedPhotos } from "./_manifest.mjs";
 
 export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
@@ -19,41 +16,14 @@ export async function handler(event) {
 
   try {
     const folder = getDropboxFolder();
-    const response = await dropboxApiFetch(`${API_BASE_URL}/files/list_folder`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        path: folder,
-        recursive: false,
-        include_media_info: true,
-        include_deleted: false,
-      }),
-    });
-
-    if (response.status === 409) {
-      const errorText = await response.text();
-      if (errorText.includes("path/not_found")) {
-        return jsonResponse(200, { entries: [] });
-      }
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return jsonResponse(response.status, { error: errorText });
-    }
-
-    const data = await response.json();
-    const entries = (data.entries || []).filter(
-      (entry) =>
-        entry[".tag"] === "file" &&
-        SUPPORTED_EXTENSIONS.some((ext) =>
-          entry.name.toLowerCase().endsWith(ext)
-        )
+    const limit = Number.parseInt(event.queryStringParameters?.limit || "20", 10);
+    const offset = Number.parseInt(
+      event.queryStringParameters?.offset || "0",
+      10
     );
 
-    return jsonResponse(200, { entries });
+    const result = await getPaginatedPhotos(folder, limit, offset);
+    return jsonResponse(200, result);
   } catch (error) {
     return jsonResponse(500, {
       error: error instanceof Error ? error.message : "Errore sconosciuto",

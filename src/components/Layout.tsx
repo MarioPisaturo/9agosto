@@ -6,6 +6,7 @@ import { hasFullscreenParam } from "../utils/fullscreenUtils";
 
 interface LayoutProps {
   photoCount: number;
+  hasMorePhotos?: boolean;
   canUpload: boolean;
   children?: React.ReactNode;
   maintenanceMode?: boolean;
@@ -13,6 +14,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({
   photoCount,
+  hasMorePhotos = false,
   canUpload,
   children,
   maintenanceMode = false,
@@ -97,6 +99,7 @@ const Layout: React.FC<LayoutProps> = ({
         <Navigation
           activeSection={getActiveSection()}
           photoCount={photoCount}
+          hasMorePhotos={hasMorePhotos}
           canUpload={canUpload}
         />
       )}

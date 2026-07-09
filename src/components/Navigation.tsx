@@ -1,16 +1,19 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { formatPhotoBadge } from "../utils/photoCount";
 import "../styles/Navigation.scss";
 
 interface NavigationProps {
   activeSection: string;
   photoCount: number;
+  hasMorePhotos?: boolean;
   canUpload: boolean;
 }
 
 const Navigation: React.FC<NavigationProps> = ({
   activeSection,
   photoCount,
+  hasMorePhotos = false,
   canUpload,
 }) => {
   const navItems = [
@@ -34,7 +37,9 @@ const Navigation: React.FC<NavigationProps> = ({
             <span className="nav-icon">{item.icon}</span>
             <span className="nav-label">{item.label}</span>
             {item.id === "stories" && photoCount > 0 && (
-              <span className="photo-badge">{photoCount}</span>
+              <span className="photo-badge">
+                {formatPhotoBadge(photoCount, hasMorePhotos)}
+              </span>
             )}
           </Link>
         ))}

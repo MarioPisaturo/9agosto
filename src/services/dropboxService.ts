@@ -2,16 +2,8 @@ import { DROPBOX_CONFIG } from "../config/dropbox";
 import { DROPBOX_PROXY, USE_DROPBOX_PROXY } from "../config/runtime";
 import { DropboxTokenManager } from "../utils/dropboxTokenManager";
 import { compressBlobForDisplay } from "../utils/imageCompression";
-
-interface DropboxFileEntry {
-  ".tag": string;
-  name: string;
-  path_lower: string;
-  path_display: string;
-  size: number;
-  server_modified: string;
-  content_hash: string;
-}
+import { PhotosManifestService } from "./photosManifestService";
+import type { PhotoManifestEntry } from "../types/photosManifest";
 
 export interface DropboxResponse {
   id: string;
@@ -44,11 +36,6 @@ export interface DropboxResponse {
 export class DropboxService {
   private static readonly API_BASE_URL = "https://api.dropboxapi.com/2";
   private static readonly CONTENT_API_URL = "https://content.dropboxapi.com/2";
-
-  // Cache per le foto (stesso sistema di prima)
-  private static allPhotosCache: DropboxResponse[] | null = null;
-  private static cacheTimestamp: number = 0;
-  private static readonly CACHE_DURATION = 50 * 60 * 1000; // 50 minuti
 
   // Cache per le blob URL delle immagini
   private static blobCache = new Map<
@@ -267,6 +254,22 @@ export class DropboxService {
 
               // Pulisce la cache dopo upload riuscito
               DropboxService.clearCache();
+
+              try {
+                await PhotosManifestService.addPhoto(
+                  DROPBOX_CONFIG.FOLDER,
+                  PhotosManifestService.entryFromUpload(response, {
+                    description,
+                    uploadedBy: _uploadedBy,
+                    uploadedAt: new Date().toISOString(),
+                  })
+                );
+              } catch (manifestError) {
+                console.warn(
+                  "Errore aggiornamento photos-manifest.json:",
+                  manifestError
+                );
+              }
 
               resolve(dropboxResponse);
             } catch (parseError) {
@@ -505,7 +508,7 @@ export class DropboxService {
   } {
     return {
       blobCacheSize: this.blobCache.size,
-      photoCacheSize: this.allPhotosCache?.length || 0,
+      photoCacheSize: 0,
       blobCacheItems: Array.from(this.blobCache.keys()),
     };
   }
@@ -554,7 +557,40 @@ export class DropboxService {
   }
 
   /**
-   * Ottieni le foto del matrimonio da Dropbox con paginazione
+   * Converte una voce del manifest nel formato usato dall'app
+   */
+  private static manifestEntryToPhoto(
+    entry: PhotoManifestEntry
+  ): DropboxResponse {
+    const metadata =
+      entry.description || entry.uploadedBy || entry.uploadedAt
+        ? {
+            description: entry.description,
+            uploadedBy: entry.uploadedBy,
+            uploadedAt: entry.uploadedAt,
+          }
+        : undefined;
+
+    return {
+      id: entry.path_lower,
+      name: entry.name,
+      path_lower: entry.path_lower,
+      path_display: entry.path_display,
+      size: entry.size,
+      server_modified: entry.server_modified,
+      content_hash: entry.content_hash || "",
+      public_id: entry.path_lower,
+      secure_url: entry.path_lower,
+      width: 800,
+      height: 600,
+      bytes: entry.size,
+      created_at: entry.server_modified,
+      metadata,
+    };
+  }
+
+  /**
+   * Ottieni le foto del matrimonio da Dropbox con paginazione (via photos-manifest.json)
    */
   static async getWeddingPhotos(
     limit: number = 100,
@@ -567,39 +603,61 @@ export class DropboxService {
     totalPages: number;
   }> {
     console.log(
-      `🔄 Recuperando foto da Dropbox (limite: ${limit}, offset: ${offset})...`
+      `🔄 Recuperando foto da manifest (limite: ${limit}, offset: ${offset})...`
     );
 
     try {
-      // Prima recupera tutte le foto se non sono in cache o la cache è scaduta
-      const allPhotos = await DropboxService.getAllRealPhotos();
+      await DropboxService.checkTokenHealth();
 
-      if (allPhotos.length === 0) {
-        console.log("⚠️ Nessuna foto trovata su Dropbox");
-        return {
-          photos: [],
-          hasMore: false,
-          totalCount: 0,
-          currentPage: 1,
-          totalPages: 1,
-        };
+      let entries: PhotoManifestEntry[] = [];
+      let totalCount = 0;
+      let hasMore = false;
+
+      if (USE_DROPBOX_PROXY) {
+        const response = await fetch(
+          `${DROPBOX_PROXY.list}?limit=${limit}&offset=${offset}`
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Errore HTTP ${response.status}:`, errorText);
+          return {
+            photos: [],
+            hasMore: false,
+            totalCount: 0,
+            currentPage: 1,
+            totalPages: 1,
+          };
+        }
+
+        const data = await response.json();
+        entries = data.entries || [];
+        totalCount = data.totalCount ?? entries.length;
+        hasMore = Boolean(data.hasMore);
+      } else {
+        const result = await PhotosManifestService.getPaginatedPhotos(
+          limit,
+          offset
+        );
+        entries = result.entries;
+        totalCount = result.totalCount;
+        hasMore = result.hasMore;
       }
 
-      // Implementa paginazione locale
-      const startIndex = offset;
-      const endIndex = offset + limit;
-      const paginatedPhotos = allPhotos.slice(startIndex, endIndex);
-      const totalPages = Math.ceil(allPhotos.length / limit);
+      const photos = entries.map((entry) =>
+        DropboxService.manifestEntryToPhoto(entry)
+      );
+      const totalPages = Math.max(1, Math.ceil(totalCount / limit));
       const currentPage = Math.floor(offset / limit) + 1;
 
       console.log(
-        `✅ Caricate ${paginatedPhotos.length} foto da Dropbox (pagina ${currentPage}/${totalPages})`
+        `✅ Caricate ${photos.length} foto da manifest (pagina ${currentPage}/${totalPages}, totale ${totalCount})`
       );
 
       return {
-        photos: paginatedPhotos,
-        hasMore: endIndex < allPhotos.length,
-        totalCount: allPhotos.length,
+        photos,
+        hasMore,
+        totalCount,
         currentPage,
         totalPages,
       };
@@ -615,178 +673,11 @@ export class DropboxService {
     }
   }
 
-  /**
-   * Recupera tutte le foto reali dalla cartella Dropbox
-   */
-  private static async getAllRealPhotos(): Promise<DropboxResponse[]> {
-    const now = Date.now();
-
-    // Verifica se la cache è valida
-    if (
-      DropboxService.allPhotosCache &&
-      now - DropboxService.cacheTimestamp < DropboxService.CACHE_DURATION
-    ) {
-      console.log("📦 Usando cache per le foto Dropbox");
-      return DropboxService.allPhotosCache;
-    }
-
-    console.log("🔄 Recuperando tutte le foto da Dropbox...");
-
-    if (!USE_DROPBOX_PROXY && !DROPBOX_CONFIG.ACCESS_TOKEN) {
-      console.error("❌ Access token Dropbox mancante");
-      return [];
-    }
-
-    await DropboxService.checkTokenHealth();
-
-    try {
-      if (USE_DROPBOX_PROXY) {
-        const response = await fetch(DROPBOX_PROXY.list);
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Errore HTTP ${response.status}:`, errorText);
-          return [];
-        }
-
-        const data = await response.json();
-        const imageFiles = data.entries || [];
-        const photos = await DropboxService.mapEntriesToPhotos(imageFiles);
-        DropboxService.updateCache(photos);
-        return photos;
-      }
-
-      const response = await fetch(
-        `${DropboxService.API_BASE_URL}/files/list_folder`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${DROPBOX_CONFIG.ACCESS_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            path: DROPBOX_CONFIG.FOLDER,
-            recursive: false,
-            include_media_info: true,
-            include_deleted: false,
-            include_has_explicit_shared_members: false,
-            include_mounted_folders: true,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const files = data.entries || [];
-
-        // Filtra solo i file immagine
-        const imageFiles = files.filter(
-          (file: DropboxFileEntry) =>
-            file[".tag"] === "file" &&
-            DROPBOX_CONFIG.SUPPORTED_FORMATS.some((format) =>
-              file.name.toLowerCase().endsWith(format.replace("image/", "."))
-            )
-        );
-
-        const photos = await DropboxService.mapEntriesToPhotos(imageFiles);
-
-        console.log(`✅ Trovate ${photos.length} foto su Dropbox`);
-        DropboxService.updateCache(photos);
-        return photos;
-      } else {
-        const errorText = await response.text();
-        console.error(`Errore HTTP ${response.status}:`, errorText);
-
-        // Cartella non ancora creata: normale al primo avvio
-        if (
-          response.status === 409 &&
-          errorText.includes("path/not_found")
-        ) {
-          console.log(
-            `📁 Cartella ${DROPBOX_CONFIG.FOLDER} non trovata: verrà creata al primo upload`
-          );
-          return [];
-        }
-
-        // Messaggio di errore specifico per 401
-        if (response.status === 401) {
-          console.error(`
-🚨 ERRORE 401 DROPBOX - PERMESSI MANCANTI!
-
-Il tuo Access Token non ha i permessi necessari.
-
-SOLUZIONE RAPIDA:
-1. Vai su https://www.dropbox.com/developers/apps
-2. Clicca sulla tua app
-3. Tab "Permissions" → Abilita tutti i permessi (soprattutto files.metadata.read)
-4. Tab "Settings" → Rigenera l'Access Token
-5. Aggiorna il token nel file .env
-6. Riavvia l'app
-
-Leggi DROPBOX_401_FIX.md per i dettagli completi.
-          `);
-        }
-
-        return [];
-      }
-    } catch (error) {
-      console.error("❌ Errore nel recupero delle foto da Dropbox:", error);
-      return [];
-    }
-  }
-
-  /**
-   * Converte le entry Dropbox nel formato usato dall'app
-   */
-  private static async mapEntriesToPhotos(
-    imageFiles: DropboxFileEntry[]
-  ): Promise<DropboxResponse[]> {
-    const photos = await Promise.all(
-      imageFiles.map(async (file) => {
-        const metadata = await DropboxService.loadMetadata(file.path_lower);
-
-        return {
-          id: file.path_lower,
-          ...file,
-          public_id: file.path_lower,
-          secure_url: file.path_lower,
-          width: 800,
-          height: 600,
-          bytes: file.size,
-          created_at: file.server_modified,
-          metadata: metadata || undefined,
-        };
-      })
-    );
-
-    photos.sort(
-      (a, b) =>
-        new Date(b.server_modified).getTime() -
-        new Date(a.server_modified).getTime()
-    );
-
-    return photos;
-  }
-
-  /**
-   * Aggiorna la cache delle foto
-   */
-  private static updateCache(photos: DropboxResponse[]): void {
-    DropboxService.allPhotosCache = photos;
-    DropboxService.cacheTimestamp = Date.now();
-  }
-
-  /**
-   * Pulisce la cache (da chiamare dopo upload di nuove foto)
-   */
   static clearCache(): void {
-    DropboxService.allPhotosCache = null;
-    DropboxService.cacheTimestamp = 0;
-    console.log("🧹 Cache foto Dropbox pulita");
+    PhotosManifestService.invalidateCache();
+    console.log("🧹 Cache manifest/blob pulita");
   }
 
-  /**
-   * Ottieni tutte le foto (metodo di compatibilità)
-   */
   static async getAllWeddingPhotos(): Promise<DropboxResponse[]> {
     const result = await DropboxService.getWeddingPhotos(1000, 0);
     return result.photos;

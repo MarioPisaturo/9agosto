@@ -153,7 +153,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <Layout photoCount={photos.length} canUpload={canUpload}>
+    <Layout photoCount={photos.length} hasMorePhotos={hasMorePhotos} canUpload={canUpload}>
       <DevDebugDock />
 
       <Routes>
@@ -195,7 +195,14 @@ const AppContent: React.FC = () => {
         <Route
           path="/stories"
           element={
-            <StoriesPage photos={photos} isLoadingPhotos={isLoadingPhotos} />
+            <StoriesPage
+              photos={photos}
+              hasMorePhotos={hasMorePhotos}
+              isLoadingPhotos={isLoadingPhotos}
+              isLoadingMore={isLoadingMore}
+              totalPhotosCount={totalPhotosCount}
+              onLoadMore={loadMorePhotos}
+            />
           }
         />
         <Route path="*" element={<NotFoundPage />} />
