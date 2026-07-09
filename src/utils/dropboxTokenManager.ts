@@ -7,10 +7,18 @@ import { DROPBOX_PROXY, USE_DROPBOX_PROXY } from "../config/runtime";
 
 export interface TokenStatus {
   isValid: boolean;
-  isExpiring: boolean;
-  expiresIn?: number;
+  isExpired: boolean;
+  authMode?: "refresh" | "static";
   error?: string;
   tokenType: "app_token" | "user_token" | "unknown";
+}
+
+function isExpiredAccessTokenError(error?: string): boolean {
+  if (!error) return false;
+  return (
+    error.includes("expired_access_token") ||
+    error.includes("Token scaduto")
+  );
 }
 
 export class DropboxTokenManager {
@@ -36,7 +44,7 @@ export class DropboxTokenManager {
 
           return {
             isValid: false,
-            isExpiring: false,
+            isExpired: isExpiredAccessTokenError(error),
             error,
             tokenType: "unknown",
           };
@@ -46,7 +54,8 @@ export class DropboxTokenManager {
 
         return {
           isValid: Boolean(data.isValid),
-          isExpiring: false,
+          isExpired: isExpiredAccessTokenError(data.error),
+          authMode: data.authMode,
           tokenType: "app_token",
           error: data.isValid ? undefined : data.error,
         };
@@ -55,7 +64,7 @@ export class DropboxTokenManager {
       if (!DROPBOX_CONFIG.ACCESS_TOKEN) {
         return {
           isValid: false,
-          isExpiring: false,
+          isExpired: false,
           error: "Token non configurato nel file .env locale",
           tokenType: "unknown",
         };
@@ -74,7 +83,7 @@ export class DropboxTokenManager {
       if (response.ok) {
         return {
           isValid: true,
-          isExpiring: false,
+          isExpired: false,
           tokenType: "app_token",
           error: undefined,
         };
@@ -94,14 +103,14 @@ export class DropboxTokenManager {
 
       return {
         isValid: false,
-        isExpiring: response.status === 401,
+        isExpired: isExpiredAccessTokenError(errorText) || response.status === 401,
         error: `${error}: ${errorText}`,
         tokenType: "unknown",
       };
     } catch (error) {
       return {
         isValid: false,
-        isExpiring: false,
+        isExpired: false,
         error: `Errore di rete: ${
           error instanceof Error ? error.message : "Sconosciuto"
         }`,
@@ -126,59 +135,45 @@ export class DropboxTokenManager {
   /**
    * Genera istruzioni per rinnovare il token
    */
-  static getTokenRenewalInstructions(
-    tokenType: TokenStatus["tokenType"]
-  ): string {
+  static getTokenRenewalInstructions(): string {
     if (USE_DROPBOX_PROXY) {
       return `
-🔄 Configura il token Dropbox su Netlify:
+🔄 Configura il refresh token Dropbox su Netlify (non scade):
 
-1. Vai su Netlify → Site settings → Environment variables
-2. Aggiungi:
-   DROPBOX_ACCESS_TOKEN = il_tuo_token_sl.u.xxx
+1. Nella dashboard Dropbox → Settings → OAuth 2 → Redirect URIs aggiungi:
+   http://localhost:8765/dropbox/oauth
+
+2. Nel progetto esegui:
+   node scripts/dropbox-auth.mjs
+
+3. Su Netlify → Site settings → Environment variables aggiungi:
+   DROPBOX_APP_KEY = la tua app key
+   DROPBOX_APP_SECRET = il tuo app secret
+   DROPBOX_REFRESH_TOKEN = il refresh token ottenuto
    DROPBOX_FOLDER = /wedding-app-09-08-26
-3. NON usare VITE_DROPBOX_ACCESS_TOKEN in produzione
-4. Fai un nuovo deploy (Deploys → Trigger deploy)
 
-Per generare il token:
-https://www.dropbox.com/developers/apps → Permissions → Submit → Generate token
+4. Rimuovi DROPBOX_ACCESS_TOKEN (scade dopo ~4 ore)
+5. NON usare VITE_DROPBOX_ACCESS_TOKEN in produzione
+6. Fai Trigger deploy
+
+💡 I token "Generate" (sl.u...) dalla console Dropbox scadono dopo ~4 ore.
+   Il refresh token si rinnova automaticamente sul server.
       `;
     }
 
-    if (tokenType === "app_token") {
-      return `
-🔄 Il tuo App Token ha problemi. Per risolverlo:
+    return `
+🔄 Token Dropbox scaduto in sviluppo locale:
 
 1. Vai su https://www.dropbox.com/developers/apps
-2. Clicca sulla tua app
-3. Vai su "Permissions" e abilita TUTTI i permessi:
-   ✅ files.metadata.read
-   ✅ files.content.read  
-   ✅ files.content.write
-   ✅ sharing.read
-   ✅ sharing.write
-4. Vai su "Settings" > "OAuth 2"
-5. Clicca "Generate" sotto "Generated access token"
-6. Copia il nuovo token nel file .env
-7. Riavvia l'applicazione
+2. Tab "Permissions" → abilita tutti i permessi → Submit
+3. Tab "Settings" → OAuth 2 → Generate (nuovo access token)
+4. Aggiorna VITE_DROPBOX_ACCESS_TOKEN nel file .env
+5. Riavvia npm run dev
 
-💡 IMPORTANTE: Gli App Token NON scadono mai se configurati correttamente!
-   Se continua a dare problemi, verifica i permessi.
-      `;
-    } else {
-      return `
-🔄 Problema con il token Dropbox. SOLUZIONE:
-
-1. Vai su https://www.dropbox.com/developers/apps
-2. Clicca sulla tua app
-3. Tab "Permissions" → abilita TUTTI i permessi e clicca "Submit"
-4. Tab "Settings" > "OAuth 2" → "Generate" access token
-5. Copia il token nel file .env come VITE_DROPBOX_ACCESS_TOKEN
-6. Riavvia l'app (ferma e rilancia pnpm dev)
-
-💡 Non serve mettere l'app in "Production" per questo uso.
-      `;
-    }
+💡 I token dalla console (sl.u...) scadono dopo ~4 ore.
+   Per produzione usa: node scripts/dropbox-auth.mjs
+   e configura DROPBOX_REFRESH_TOKEN su Netlify.
+    `;
   }
 
   /**
@@ -191,7 +186,7 @@ https://www.dropbox.com/developers/apps → Permissions → Submit → Generate 
       console.warn("🚨 Problema con il token Dropbox:", status.error);
 
       // Mostra un avviso discreto all'utente
-      const instructions = this.getTokenRenewalInstructions(status.tokenType);
+      const instructions = this.getTokenRenewalInstructions();
 
       // In un'app reale, potresti mostrare questo in un toast o modal
       console.info(instructions);

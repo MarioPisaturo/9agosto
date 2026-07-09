@@ -33,10 +33,13 @@ In produzione l'app usa **Netlify Functions** come proxy: il token resta solo su
 
    | Variabile | Obbligatoria | Note |
    |-----------|--------------|------|
-   | `DROPBOX_ACCESS_TOKEN` | Sì | Token generato da Dropbox Developers |
+   | `DROPBOX_APP_KEY` | Sì | App key da Dropbox Developers |
+   | `DROPBOX_APP_SECRET` | Sì | App secret da Dropbox Developers |
+   | `DROPBOX_REFRESH_TOKEN` | Sì | Ottenuto con `npm run dropbox:auth` |
    | `DROPBOX_FOLDER` | Sì | Es. `/wedding-app-09-08-26` |
 
    **Non** aggiungere `VITE_DROPBOX_ACCESS_TOKEN` su Netlify.
+   **Non** usare `DROPBOX_ACCESS_TOKEN` (scade dopo ~4 ore).
 
 4. **Deploy** → Netlify esegue build + pubblica le functions in `netlify/functions/`
 
@@ -48,10 +51,11 @@ In produzione l'app usa **Netlify Functions** come proxy: il token resta solo su
 
 1. [dropbox.com/developers/apps](https://www.dropbox.com/developers/apps)
 2. Permissions → abilita `files.metadata.read`, `files.content.read`, `files.content.write`, `sharing.read`, `sharing.write` → **Submit**
-3. Settings → OAuth 2 → **Generate** access token
-4. Copia il token in `DROPBOX_ACCESS_TOKEN` su Netlify
+3. Settings → OAuth 2 → Redirect URIs → aggiungi `http://localhost:8765/dropbox/oauth`
+4. Nel progetto: `npm run dropbox:auth` → autorizza l'app → copia le variabili su Netlify
+5. Fai **Trigger deploy**
 
-Non serve mettere l'app Dropbox in **Production**.
+I token "Generate" dalla console (`sl.u...`) scadono dopo ~4 ore. Il refresh token si rinnova automaticamente sul server.
 
 ### Routing SPA
 

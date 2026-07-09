@@ -35,38 +35,32 @@ const StorageSetupGuide: React.FC<StorageSetupGuideProps> = ({ onClose }) => {
 
   const getDropboxInstructions = () => {
     return `
-🔧 SETUP DROPBOX - Token Permanente
+🔧 SETUP DROPBOX - Sviluppo locale
 
 1. VAI SU DROPBOX DEVELOPERS
    → https://www.dropbox.com/developers/apps
 
 2. CREA/SELEZIONA LA TUA APP
-   → Clicca "Create app" o seleziona app esistente
-   → Scegli "Scoped access"
-   → Scegli "Full Dropbox"
-   → Dai un nome alla tua app
+   → Scoped access → Full Dropbox
 
-3. CONFIGURA I PERMESSI
-   → Vai su "Permissions"
-   → Abilita TUTTI questi permessi:
-     ✅ files.metadata.read
-     ✅ files.content.read  
-     ✅ files.content.write
-     ✅ sharing.read
-     ✅ sharing.write
+3. CONFIGURA I PERMESSI (tab Permissions → Submit)
+   ✅ files.metadata.read
+   ✅ files.content.read
+   ✅ files.content.write
+   ✅ sharing.read
+   ✅ sharing.write
 
-4. GENERA IL TOKEN
-   → Vai su "Settings" 
-   → Scorri fino a "OAuth 2"
-   → Clicca "Generate" sotto "Generated access token"
-   → COPIA IL TOKEN (inizia con "sl.u...")
+4. GENERA UN ACCESS TOKEN (solo per sviluppo)
+   → Settings → OAuth 2 → Generate
+   → Copia in VITE_DROPBOX_ACCESS_TOKEN nel .env
+   → Riavvia npm run dev
 
-5. AGGIORNA IL FILE .env
-   → Incolla il token in VITE_DROPBOX_ACCESS_TOKEN
-   → Riavvia l'applicazione
+⚠️  I token dalla console (sl.u...) scadono dopo ~4 ore.
 
-💡 QUESTO TOKEN NON SCADRÀ MAI!
-   Perfetto per app matrimoniali private.
+5. PER PRODUZIONE (Netlify) — refresh token che non scade:
+   → Aggiungi redirect URI: http://localhost:8765/dropbox/oauth
+   → Esegui: node scripts/dropbox-auth.mjs
+   → Configura DROPBOX_REFRESH_TOKEN su Netlify
     `;
   };
 
@@ -169,7 +163,7 @@ const StorageSetupGuide: React.FC<StorageSetupGuideProps> = ({ onClose }) => {
               <div className="benefits">
                 <h4>✨ Vantaggi Dropbox:</h4>
                 <ul>
-                  <li>🔒 Token permanente (non scade mai)</li>
+                  <li>🔄 Refresh token automatico in produzione</li>
                   <li>📁 Organizzazione in cartelle</li>
                   <li>💾 Backup sicuro</li>
                   <li>🔄 Sincronizzazione automatica</li>
@@ -183,7 +177,7 @@ const StorageSetupGuide: React.FC<StorageSetupGuideProps> = ({ onClose }) => {
           <div className="recommendation">
             <h4>💡 Raccomandazione:</h4>
             <p>
-              <strong>Configura Dropbox</strong> con un token permanente per caricare e condividere le foto.
+              <strong>Configura Dropbox</strong> con refresh token in produzione per caricare e condividere le foto senza scadenze.
             </p>
           </div>
         </div>

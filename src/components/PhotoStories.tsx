@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import type { Photo } from "../types";
+import { formatItalyPhotoTimestamp } from "../utils/dateTime";
 import { addFullscreenParam } from "../utils/fullscreenUtils";
 import { useFullscreenRoute } from "../hooks/useFullscreenRoute";
 import DropboxImage from "./DropboxImage";
@@ -571,12 +572,7 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({
         <div className="photo-overlay">
           <div className="photo-info">
             <span className="upload-time">
-              {new Date(currentPhoto.timestamp).toLocaleString("it-IT", {
-                day: "numeric",
-                month: "short",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {formatItalyPhotoTimestamp(currentPhoto.timestamp)}
             </span>
             {currentPhoto.uploadedBy && (
               <span className="uploaded-by">

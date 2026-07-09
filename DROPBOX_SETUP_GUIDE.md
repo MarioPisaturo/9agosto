@@ -47,8 +47,8 @@ Vai nella tab **"Permissions"** e abilita TUTTI questi permessi:
 Nella tab **"Settings"**:
 
 1. **App key**: Copia questo valore (lo userai nel .env)
-2. **OAuth 2 redirect URIs**: Aggiungi `http://localhost:5173/auth/dropbox`
-3. **Generated access token**: Clicca "Generate" e copia il token
+2. **OAuth 2 redirect URIs**: Aggiungi `http://localhost:8765/dropbox/oauth` (per il refresh token in produzione)
+3. **Generated access token**: Solo per sviluppo locale — scade dopo ~4 ore
 
 ## 📋 Passo 2: Configurare l'App
 
@@ -67,7 +67,24 @@ VITE_DROPBOX_REDIRECT_URI=http://localhost:5173/auth/dropbox
 **Sostituisci i valori:**
 
 - `your_app_key_here` → App key dal dashboard Dropbox
-- `your_access_token_here` → Access token generato
+- `your_access_token_here` → Access token generato (solo dev, scade dopo ~4 ore)
+
+### 2.3 Produzione su Netlify (refresh token — non scade)
+
+```bash
+npm run dropbox:auth
+```
+
+Lo script apre il browser, ottieni il refresh token e configura su Netlify:
+
+```env
+DROPBOX_APP_KEY=...
+DROPBOX_APP_SECRET=...
+DROPBOX_REFRESH_TOKEN=...
+DROPBOX_FOLDER=/wedding-photos
+```
+
+Le Netlify Functions rinnovano automaticamente l'access token sul server.
 
 ### 2.2 Installa le Dipendenze
 
@@ -180,13 +197,14 @@ await DropboxService.deletePhoto("/wedding-photos/photo.jpg");
 
 ## 🔒 Sicurezza in Produzione
 
-Per la produzione, considera di implementare OAuth flow completo invece di usare un access token fisso:
+In produzione usa **refresh token** sul server (Netlify Functions), non un access token nel browser:
 
-1. L'utente autorizza l'app tramite Dropbox
-2. L'app riceve un access token temporaneo
-3. Più sicuro per app pubbliche
+1. Esegui `npm run dropbox:auth` per ottenere `DROPBOX_REFRESH_TOKEN`
+2. Configura `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET`, `DROPBOX_REFRESH_TOKEN` su Netlify
+3. **Non** usare `VITE_DROPBOX_ACCESS_TOKEN` in produzione
 
-Ma per un'app matrimoniale privata, l'access token fisso è perfetto!
+I token generati con "Generate" dalla console (`sl.u...`) scadono dopo circa 4 ore.
+Il refresh token si rinnova automaticamente e non richiede intervento manuale.
 
 ---
 

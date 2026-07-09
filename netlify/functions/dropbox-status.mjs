@@ -1,7 +1,8 @@
 import {
   API_BASE_URL,
   corsHeaders,
-  getDropboxConfig,
+  dropboxApiFetch,
+  getDropboxAuthMode,
   jsonResponse,
 } from "./_dropbox.mjs";
 
@@ -15,11 +16,10 @@ export async function handler(event) {
   }
 
   try {
-    const { token } = getDropboxConfig();
-    const response = await fetch(`${API_BASE_URL}/check/user`, {
+    const authMode = getDropboxAuthMode();
+    const response = await dropboxApiFetch(`${API_BASE_URL}/check/user`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: "{}",
@@ -29,11 +29,12 @@ export async function handler(event) {
       const errorText = await response.text();
       return jsonResponse(response.status, {
         isValid: false,
+        authMode,
         error: errorText,
       });
     }
 
-    return jsonResponse(200, { isValid: true });
+    return jsonResponse(200, { isValid: true, authMode });
   } catch (error) {
     return jsonResponse(500, {
       isValid: false,

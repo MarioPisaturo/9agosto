@@ -19,7 +19,7 @@ const Navigation: React.FC<NavigationProps> = ({
     ...(canUpload
       ? [{ id: "upload", label: "Carica", icon: "📷", path: "/upload" }]
       : []),
-    { id: "stories", label: "Stories", icon: "✨", path: "/stories" },
+    { id: "stories", label: "Momenti", icon: "✨", path: "/stories" },
   ];
 
   return (

@@ -15,5 +15,7 @@ export interface WeddingInfo {
   brideName: string;
   groomName: string;
   weddingDate: Date;
+  church: string;
+  churchTime: string;
   venue: string;
 }

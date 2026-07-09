@@ -61,28 +61,25 @@ const TokenStatusBanner: React.FC = () => {
   }
 
   const getStatusIcon = () => {
-    if (tokenStatus.isExpiring) return "⏰";
+    if (tokenStatus.isExpired) return "⏰";
     if (!tokenStatus.isValid) return "🚨";
     return "⚠️";
   };
 
   const getStatusMessage = () => {
-    if (tokenStatus.isExpiring) {
-      return "Il token Dropbox sta per scadere";
+    if (tokenStatus.isExpired) {
+      return USE_DROPBOX_PROXY
+        ? "Token Dropbox scaduto — configura il refresh token su Netlify"
+        : "Token Dropbox scaduto — rigeneralo dalla console Dropbox";
     }
     if (!tokenStatus.isValid) {
-      if (tokenStatus.tokenType === "user_token") {
-        return "Token Dropbox scaduto - Passa a token permanente!";
-      }
       return "Problema con il token Dropbox";
     }
     return "Attenzione token Dropbox";
   };
 
   const getInstructions = () => {
-    return DropboxTokenManager.getTokenRenewalInstructions(
-      tokenStatus.tokenType
-    );
+    return DropboxTokenManager.getTokenRenewalInstructions();
   };
 
   return (

@@ -1,7 +1,8 @@
 import {
   API_BASE_URL,
   corsHeaders,
-  getDropboxConfig,
+  dropboxApiFetch,
+  getDropboxFolder,
   jsonResponse,
 } from "./_dropbox.mjs";
 
@@ -17,11 +18,10 @@ export async function handler(event) {
   }
 
   try {
-    const { token, folder } = getDropboxConfig();
-    const response = await fetch(`${API_BASE_URL}/files/list_folder`, {
+    const folder = getDropboxFolder();
+    const response = await dropboxApiFetch(`${API_BASE_URL}/files/list_folder`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

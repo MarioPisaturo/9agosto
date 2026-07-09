@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback } from "react";
 import type { Photo } from "../types/";
+import { formatItalyPhotoTimestamp } from "../utils/dateTime";
 import { DropboxService } from "../services/dropboxService";
 import { createFullscreenLink } from "../utils/fullscreenUtils";
 import DropboxImage from "./DropboxImage";
@@ -164,12 +165,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
               <div className="photo-overlay">
                 <div className="photo-meta">
                   <span className="photo-time">
-                    {new Date(photo.timestamp).toLocaleDateString("it-IT", {
-                      day: "numeric",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {formatItalyPhotoTimestamp(photo.timestamp)}
                   </span>
                   {photo.uploadedBy && (
                     <span className="photo-author">📸 {photo.uploadedBy}</span>

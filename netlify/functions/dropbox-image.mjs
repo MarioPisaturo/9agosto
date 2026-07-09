@@ -1,4 +1,8 @@
-import { CONTENT_API_URL, corsHeaders, getDropboxConfig } from "./_dropbox.mjs";
+import {
+  CONTENT_API_URL,
+  corsHeaders,
+  dropboxApiFetch,
+} from "./_dropbox.mjs";
 
 export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
@@ -14,7 +18,6 @@ export async function handler(event) {
   }
 
   try {
-    const { token } = getDropboxConfig();
     const path = event.queryStringParameters?.path;
 
     if (!path) {
@@ -25,10 +28,9 @@ export async function handler(event) {
       };
     }
 
-    const response = await fetch(`${CONTENT_API_URL}/files/download`, {
+    const response = await dropboxApiFetch(`${CONTENT_API_URL}/files/download`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
         "Dropbox-API-Arg": JSON.stringify({ path }),
       },
     });

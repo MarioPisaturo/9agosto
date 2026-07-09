@@ -17,6 +17,7 @@ import { DropboxService } from "./services/dropboxService";
 import { samplePhotos } from "./utils/samplePhotos";
 import { useCacheManager } from "./hooks/useCacheManager";
 import { useUploadAccess } from "./hooks/useUploadAccess";
+import { parseItalyDateTime } from "./utils/dateTime";
 import CacheDebug from "./components/CacheDebug";
 import "./styles/App.scss";
 
@@ -38,7 +39,9 @@ const AppContent: React.FC = () => {
   const weddingInfo: WeddingInfo = {
     brideName: "Annachiara",
     groomName: "Mario",
-    weddingDate: new Date("2026-08-09T10:00:00"), // Customize this date
+    weddingDate: parseItalyDateTime("2026-08-09", "10:30"),
+    church: "Chiesa di San Sebastiano Martire, Valle Agricola",
+    churchTime: "10:30",
     venue: "Villa Regina, Grottaminarda",
   };
 
