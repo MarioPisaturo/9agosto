@@ -150,6 +150,7 @@ const AppContent: React.FC = () => {
             <GalleryPage
               photos={photos}
               hasMorePhotos={hasMorePhotos}
+              isLoadingPhotos={isLoadingPhotos}
               isLoadingMore={isLoadingMore}
               totalPhotosCount={totalPhotosCount}
               onLoadMore={loadMorePhotos}
@@ -160,7 +161,12 @@ const AppContent: React.FC = () => {
           path="/upload"
           element={<UploadPage onPhotoUpload={handlePhotoUpload} />}
         />
-        <Route path="/stories" element={<StoriesPage photos={photos} />} />
+        <Route
+          path="/stories"
+          element={
+            <StoriesPage photos={photos} isLoadingPhotos={isLoadingPhotos} />
+          }
+        />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Layout>

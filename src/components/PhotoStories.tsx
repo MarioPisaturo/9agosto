@@ -8,9 +8,13 @@ import "../styles/DropboxImage.scss";
 
 interface PhotoStoriesProps {
   photos: Photo[];
+  isLoadingPhotos: boolean;
 }
 
-const PhotoStories: React.FC<PhotoStoriesProps> = ({ photos }) => {
+const PhotoStories: React.FC<PhotoStoriesProps> = ({
+  photos,
+  isLoadingPhotos,
+}) => {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
@@ -38,6 +42,15 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({ photos }) => {
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartTimeRef = useRef(0);
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
+  const isHoldingRef = useRef(false);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wasPlayingBeforeHoldRef = useRef(true);
+  const touchHandledRef = useRef(false);
+  const tapFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [tapFlash, setTapFlash] = useState<"left" | "right" | null>(null);
 
   // Hook per gestire il fullscreen con routing
   const { shouldActivateFullscreen, clearFullscreenParam } =
@@ -290,21 +303,18 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({ photos }) => {
     }
   }, [isFullscreen, showControlsTemporarily]);
 
-  // Event listeners per mostrare controlli
+  // Event listeners per mostrare controlli (solo desktop)
   useEffect(() => {
     if (!isFullscreen) return;
 
     const handleMouseMove = () => showControlsTemporarily();
-    const handleTouchStart = () => showControlsTemporarily();
     const handleKeyDown = () => showControlsTemporarily();
 
     document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("touchstart", handleTouchStart);
     document.addEventListener("keydown", handleKeyDown);
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("touchstart", handleTouchStart);
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isFullscreen, showControlsTemporarily]);
@@ -320,9 +330,20 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({ photos }) => {
   }, [currentPhotoIndex, thumbnailPage, THUMBNAILS_PER_PAGE, photos.length]);
 
   const handlePhotoClick = (event: React.MouseEvent) => {
+    if (touchHandledRef.current) return;
+
     const rect = event.currentTarget.getBoundingClientRect();
     const clickX = event.clientX - rect.left;
     const centerX = rect.width / 2;
+
+    if (isFullscreen) {
+      if (clickX < rect.width * 0.35) {
+        prevPhoto();
+      } else {
+        nextPhoto();
+      }
+      return;
+    }
 
     if (clickX < centerX) {
       prevPhoto();
@@ -331,34 +352,124 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({ photos }) => {
     }
   };
 
+  const triggerTapFlash = (side: "left" | "right") => {
+    if (tapFlashTimeoutRef.current) {
+      clearTimeout(tapFlashTimeoutRef.current);
+    }
+    setTapFlash(side);
+    tapFlashTimeoutRef.current = setTimeout(() => setTapFlash(null), 250);
+  };
+
   // Gestione touch per mobile
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   const minSwipeDistance = 50;
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
+  const handleStoryTouchStart = (e: React.TouchEvent) => {
+    if (!isFullscreen) {
+      setTouchEnd(null);
+      setTouchStart(e.targetTouches[0].clientX);
+      return;
+    }
+
+    const touch = e.targetTouches[0];
+    touchStartTimeRef.current = Date.now();
+    touchStartXRef.current = touch.clientX;
+    touchStartYRef.current = touch.clientY;
+    isHoldingRef.current = false;
+
+    holdTimerRef.current = setTimeout(() => {
+      isHoldingRef.current = true;
+      wasPlayingBeforeHoldRef.current = isPlaying;
+      setIsPlaying(false);
+    }, 250);
   };
 
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
+  const handleStoryTouchMove = (e: React.TouchEvent) => {
+    if (!isFullscreen) {
+      setTouchEnd(e.targetTouches[0].clientX);
+      return;
+    }
 
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
+    const touch = e.targetTouches[0];
+    const moveX = Math.abs(touch.clientX - touchStartXRef.current);
+    const moveY = Math.abs(touch.clientY - touchStartYRef.current);
 
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe) {
-      nextPhoto();
-    } else if (isRightSwipe) {
-      prevPhoto();
+    if (moveX > 10 || moveY > 10) {
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
     }
   };
+
+  const handleStoryTouchEnd = (e: React.TouchEvent) => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+
+    if (!isFullscreen) {
+      if (!touchStart || !touchEnd) return;
+
+      const distance = touchStart - touchEnd;
+      const isLeftSwipe = distance > minSwipeDistance;
+      const isRightSwipe = distance < -minSwipeDistance;
+
+      if (isLeftSwipe) {
+        nextPhoto();
+      } else if (isRightSwipe) {
+        prevPhoto();
+      }
+      return;
+    }
+
+    const touch = e.changedTouches[0];
+    const duration = Date.now() - touchStartTimeRef.current;
+    const moveX = Math.abs(touch.clientX - touchStartXRef.current);
+    const moveY = Math.abs(touch.clientY - touchStartYRef.current);
+
+    if (isHoldingRef.current) {
+      isHoldingRef.current = false;
+      setIsPlaying(wasPlayingBeforeHoldRef.current);
+      touchHandledRef.current = true;
+      setTimeout(() => {
+        touchHandledRef.current = false;
+      }, 400);
+      return;
+    }
+
+    if (duration < 300 && moveX < 15 && moveY < 15) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const relativeX = touch.clientX - rect.left;
+      const isLeftTap = relativeX < rect.width * 0.35;
+
+      triggerTapFlash(isLeftTap ? "left" : "right");
+      if (isLeftTap) {
+        prevPhoto();
+      } else {
+        nextPhoto();
+      }
+
+      touchHandledRef.current = true;
+      setTimeout(() => {
+        touchHandledRef.current = false;
+      }, 400);
+    }
+  };
+
+  if (isLoadingPhotos) {
+    return (
+      <div className="photo-stories-container">
+        <div className="no-photos loading-photos">
+          <div className="loading-spinner"></div>
+          <h2>Caricando le foto...</h2>
+          <p>Un attimo, stiamo recuperando i momenti del matrimonio</p>
+        </div>
+      </div>
+    );
+  }
 
   if (photos.length === 0) {
     return (
@@ -424,11 +535,11 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({ photos }) => {
       <div
         className={`story-photo-container ${
           isTransitioning ? "transitioning" : ""
-        }`}
+        } ${isFullscreen ? "story-touch-surface" : ""}`}
         onClick={handlePhotoClick}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
+        onTouchStart={handleStoryTouchStart}
+        onTouchMove={handleStoryTouchMove}
+        onTouchEnd={handleStoryTouchEnd}
       >
         {currentPhoto.publicId ? (
           <DropboxImage
@@ -451,6 +562,10 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({ photos }) => {
             onLoad={() => setIsCurrentPhotoLoading(false)}
             onLoadStart={() => setIsCurrentPhotoLoading(true)}
           />
+        )}
+
+        {isFullscreen && tapFlash && (
+          <div className={`story-tap-flash ${tapFlash}`} aria-hidden="true" />
         )}
 
         <div className="photo-overlay">
@@ -484,10 +599,12 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({ photos }) => {
           )}
         </div>
 
-        <div className="navigation-hints">
-          <div className="nav-hint left">←</div>
-          <div className="nav-hint right">→</div>
-        </div>
+        {!isFullscreen && (
+          <div className="navigation-hints">
+            <div className="nav-hint left">←</div>
+            <div className="nav-hint right">→</div>
+          </div>
+        )}
       </div>
 
       {!isFullscreen && (
@@ -599,37 +716,41 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({ photos }) => {
         </>
       )}
 
-      {/* Controlli fullscreen eleganti */}
+      {/* Controlli fullscreen */}
       {isFullscreen && (
-        <div
-          className={`fullscreen-controls ${
-            showFullscreenControls ? "visible" : "hidden"
-          }`}
-        >
-          {/* Pulsante exit minimale in alto */}
-          <button className="fullscreen-exit-minimal" onClick={exitFullscreen}>
+        <>
+          <button
+            className="fullscreen-exit-minimal"
+            onClick={exitFullscreen}
+            aria-label="Esci dal fullscreen"
+          >
             ✕
           </button>
 
-          {/* Barra controlli in basso */}
-          <div className="fullscreen-bottom-bar">
-            <button
-              className="fullscreen-control-btn play-pause"
-              onClick={togglePlayPause}
-              title={isPlaying ? "Pausa" : "Play"}
-            >
-              {isPlaying ? "⏸️" : "▶️"}
-            </button>
+          <div
+            className={`fullscreen-controls ${
+              showFullscreenControls ? "visible" : "hidden"
+            }`}
+          >
+            <div className="fullscreen-bottom-bar">
+              <button
+                className="fullscreen-control-btn play-pause"
+                onClick={togglePlayPause}
+                title={isPlaying ? "Pausa" : "Play"}
+              >
+                {isPlaying ? "⏸️" : "▶️"}
+              </button>
 
-            <button
-              className="fullscreen-control-btn exit"
-              onClick={exitFullscreen}
-              title="Esci dal fullscreen"
-            >
-              ⤵️
-            </button>
+              <button
+                className="fullscreen-control-btn exit"
+                onClick={exitFullscreen}
+                title="Esci dal fullscreen"
+              >
+                ⤵️
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

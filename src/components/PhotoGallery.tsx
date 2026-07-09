@@ -9,6 +9,7 @@ import "../styles/DropboxImage.scss";
 interface PhotoGalleryProps {
   photos: Photo[];
   hasMorePhotos: boolean;
+  isLoadingPhotos: boolean;
   isLoadingMore: boolean;
   totalCount: number;
   onLoadMore: () => void;
@@ -17,6 +18,7 @@ interface PhotoGalleryProps {
 const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   photos,
   hasMorePhotos,
+  isLoadingPhotos,
   isLoadingMore,
   totalCount,
   onLoadMore,
@@ -52,6 +54,22 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
       }
     };
   }, [handleIntersection]);
+
+  if (isLoadingPhotos) {
+    return (
+      <div className="photo-gallery-container">
+        <div className="gallery-header">
+          <h2>Galleria Matrimonio</h2>
+          <p>Stiamo caricando le foto del nostro giorno speciale...</p>
+        </div>
+        <div className="empty-gallery loading-gallery">
+          <div className="spinner"></div>
+          <p>Caricando le foto...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (photos.length === 0) {
     return (
       <div className="photo-gallery-container">

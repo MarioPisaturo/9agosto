@@ -117,6 +117,18 @@
       font-family: 'Cormorant Garamond', serif;
       color: #8b4513;
     }
+
+    &.loading-gallery {
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(139, 69, 19, 0.2);
+        border-top: 3px solid #8b4513;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1rem;
+      }
+    }
   }
 
   .gallery-grid {

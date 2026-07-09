@@ -5,6 +5,7 @@ import type { Photo } from "../types";
 interface GalleryPageProps {
   photos: Photo[];
   hasMorePhotos: boolean;
+  isLoadingPhotos: boolean;
   isLoadingMore: boolean;
   totalPhotosCount: number;
   onLoadMore: () => void;
@@ -13,6 +14,7 @@ interface GalleryPageProps {
 const GalleryPage: React.FC<GalleryPageProps> = ({
   photos,
   hasMorePhotos,
+  isLoadingPhotos,
   isLoadingMore,
   totalPhotosCount,
   onLoadMore,
@@ -21,6 +23,7 @@ const GalleryPage: React.FC<GalleryPageProps> = ({
     <PhotoGallery
       photos={photos}
       hasMorePhotos={hasMorePhotos}
+      isLoadingPhotos={isLoadingPhotos}
       isLoadingMore={isLoadingMore}
       totalCount={totalPhotosCount}
       onLoadMore={onLoadMore}

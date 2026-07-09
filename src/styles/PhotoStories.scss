@@ -57,12 +57,44 @@
       max-height: none;
       margin: 0;
       border-radius: 0;
+      cursor: default;
+      box-shadow: none;
+      -webkit-tap-highlight-color: transparent;
+      tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+
+      &.story-touch-surface {
+        &:hover .story-photo {
+          transform: none;
+        }
+      }
       
       .story-photo {
         width: 100%;
         height: 100%;
         object-fit: contain;
         background: #000;
+      }
+
+      .story-tap-flash {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 40%;
+        pointer-events: none;
+        z-index: 6;
+        background: rgba(255, 255, 255, 0.12);
+        animation: storyTapFlash 0.25s ease-out forwards;
+
+        &.left {
+          left: 0;
+        }
+
+        &.right {
+          right: 0;
+        }
       }
 
       .photo-info {
@@ -119,6 +151,18 @@
       margin: 0;
       font-family: 'Cormorant Garamond', serif;
       color: #8b4513;
+    }
+
+    &.loading-photos {
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(139, 69, 19, 0.2);
+        border-top: 3px solid #8b4513;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1.5rem;
+      }
     }
   }
 
@@ -622,40 +666,41 @@
         }
       }
     }
+  }
 
-    // Pulsante exit minimale in alto a destra
-    .fullscreen-exit-minimal {
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-      background: rgba(0, 0, 0, 0.6);
-      border: none;
-      border-radius: 50%;
-      width: 36px;
-      height: 36px;
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 1.1rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-      pointer-events: auto;
-      backdrop-filter: blur(10px);
+  // Pulsante exit sempre visibile in fullscreen
+  .fullscreen-exit-minimal {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 25;
+    background: rgba(0, 0, 0, 0.45);
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease, color 0.2s ease;
+    pointer-events: auto;
+    backdrop-filter: blur(10px);
+    -webkit-tap-highlight-color: transparent;
 
-      &:hover {
-        background: rgba(255, 0, 0, 0.6);
-        color: white;
-        transform: scale(1.05);
-      }
+    &:hover {
+      background: rgba(255, 0, 0, 0.6);
+      color: white;
+    }
 
-      @media (max-width: 768px) {
-        top: 1.5rem;
-        right: 1.5rem;
-        width: 32px;
-        height: 32px;
-        font-size: 1rem;
-      }
+    @media (max-width: 768px) {
+      top: 1.5rem;
+      right: 1.5rem;
+      width: 32px;
+      height: 32px;
+      font-size: 1rem;
     }
   }
 }
@@ -664,4 +709,13 @@
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+@keyframes storyTapFlash {
+  0% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+  }
 }
