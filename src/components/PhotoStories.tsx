@@ -549,6 +549,7 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({
             className={`story-photo ${
               isTransitioning ? "fade-transition" : ""
             }`}
+            loading="eager"
             variant="display"
             onLoadStart={handlePhotoLoadStart}
             onLoadComplete={handlePhotoLoadComplete}

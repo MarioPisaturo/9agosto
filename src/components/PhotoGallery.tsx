@@ -145,7 +145,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
                   onClick={async () => {
                     const blobUrl = await DropboxService.getImageBlob(
                       photo.publicId!,
-                      { variant: "full" }
+                      { variant: "display" }
                     );
                     if (blobUrl) {
                       window.open(blobUrl, "_blank");

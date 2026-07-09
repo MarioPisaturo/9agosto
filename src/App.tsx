@@ -18,6 +18,10 @@ import { samplePhotos } from "./utils/samplePhotos";
 import { useCacheManager } from "./hooks/useCacheManager";
 import { useUploadAccess } from "./hooks/useUploadAccess";
 import { parseItalyDateTime } from "./utils/dateTime";
+import {
+  GALLERY_INITIAL_PAGE_SIZE,
+  GALLERY_LOAD_MORE_SIZE,
+} from "./config/gallery";
 import CacheDebug from "./components/CacheDebug";
 import "./styles/App.scss";
 
@@ -50,7 +54,10 @@ const AppContent: React.FC = () => {
     const loadInitialPhotos = async () => {
       setIsLoadingPhotos(true);
       try {
-        const result = await DropboxService.getWeddingPhotos(100, 0);
+        const result = await DropboxService.getWeddingPhotos(
+          GALLERY_INITIAL_PAGE_SIZE,
+          0
+        );
 
         // Converti le foto di Dropbox nel formato dell'app
         const convertedPhotos: Photo[] = result.photos.map((photo) => ({
@@ -101,7 +108,10 @@ const AppContent: React.FC = () => {
     setIsLoadingMore(true);
     try {
       const currentOffset = photos.length;
-      const result = await DropboxService.getWeddingPhotos(5, currentOffset);
+      const result = await DropboxService.getWeddingPhotos(
+        GALLERY_LOAD_MORE_SIZE,
+        currentOffset
+      );
 
       // Converti le nuove foto di Dropbox nel formato dell'app
       const newConvertedPhotos: Photo[] = result.photos.map((photo) => ({

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { DropboxService } from "../services/dropboxService";
+import { GALLERY_IMAGE_PRELOAD_MARGIN } from "../config/gallery";
 
 interface DropboxImageProps {
   filePath: string;
@@ -7,6 +8,7 @@ interface DropboxImageProps {
   className?: string;
   style?: React.CSSProperties;
   onClick?: () => void;
+  /** lazy = scarica solo quando visibile; eager = subito (es. foto corrente in Stories) */
   loading?: "lazy" | "eager";
   variant?: "full" | "display" | "thumb";
   onLoadComplete?: () => void;
@@ -24,12 +26,43 @@ const DropboxImage: React.FC<DropboxImageProps> = ({
   onLoadComplete,
   onLoadStart,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [shouldLoad, setShouldLoad] = useState(loading === "eager");
   const [imageSrc, setImageSrc] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(loading === "eager");
   const [error, setError] = useState<string>("");
-  const currentBlobUrlRef = useRef<string>("");
 
   useEffect(() => {
+    if (loading === "eager") {
+      setShouldLoad(true);
+      return;
+    }
+
+    setShouldLoad(false);
+    setImageSrc("");
+    setIsLoading(false);
+    setError("");
+
+    const node = containerRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { root: null, rootMargin: GALLERY_IMAGE_PRELOAD_MARGIN, threshold: 0.01 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [filePath, loading]);
+
+  useEffect(() => {
+    if (!shouldLoad || !filePath) return;
+
     let isMounted = true;
 
     const loadImage = async () => {
@@ -38,21 +71,17 @@ const DropboxImage: React.FC<DropboxImageProps> = ({
         setError("");
         onLoadStart?.();
 
-        console.log(`🖼️ Loading image: ${filePath} (${variant})`);
         const blobUrl = await DropboxService.getImageBlob(filePath, { variant });
 
-        if (isMounted) {
-          if (blobUrl) {
-            // NON revocare il precedente blob URL - è gestito dalla cache
-            currentBlobUrlRef.current = blobUrl;
-            setImageSrc(blobUrl);
-            console.log(`✅ Image loaded: ${filePath}`);
-            onLoadComplete?.();
-          } else {
-            setError("Impossibile caricare l'immagine");
-          }
-          setIsLoading(false);
+        if (!isMounted) return;
+
+        if (blobUrl) {
+          setImageSrc(blobUrl);
+          onLoadComplete?.();
+        } else {
+          setError("Impossibile caricare l'immagine");
         }
+        setIsLoading(false);
       } catch (err) {
         if (isMounted) {
           setError("Errore nel caricamento dell'immagine");
@@ -62,30 +91,41 @@ const DropboxImage: React.FC<DropboxImageProps> = ({
       }
     };
 
-    if (filePath) {
-      loadImage();
-    }
+    loadImage();
 
-    // Cleanup: NON revocare il blob URL qui perché potrebbe essere condiviso
-    // La cache nel DropboxService si occuperà della pulizia quando necessario
     return () => {
       isMounted = false;
-      // Non revocare il blob URL qui - è gestito dalla cache globale
     };
-  }, [filePath, variant, onLoadComplete, onLoadStart]);
+  }, [shouldLoad, filePath, variant, onLoadComplete, onLoadStart]);
+
+  const placeholderStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f0f0f0",
+    minHeight: "200px",
+    width: "100%",
+    height: "100%",
+    ...style,
+  };
+
+  if (!shouldLoad) {
+    return (
+      <div
+        ref={containerRef}
+        className={`dropbox-image-placeholder ${className || ""}`}
+        style={placeholderStyle}
+        aria-hidden="true"
+      />
+    );
+  }
 
   if (isLoading) {
     return (
       <div
+        ref={containerRef}
         className={`dropbox-image-loading ${className || ""}`}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#f0f0f0",
-          minHeight: "200px",
-          ...style,
-        }}
+        style={placeholderStyle}
       >
         <div style={{ textAlign: "center" }}>
           <div
@@ -110,16 +150,13 @@ const DropboxImage: React.FC<DropboxImageProps> = ({
   if (error) {
     return (
       <div
+        ref={containerRef}
         className={`dropbox-image-error ${className || ""}`}
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          ...placeholderStyle,
           backgroundColor: "#ffe6e6",
           color: "#d63031",
-          minHeight: "200px",
           border: "2px dashed #d63031",
-          ...style,
         }}
       >
         <div style={{ textAlign: "center" }}>
