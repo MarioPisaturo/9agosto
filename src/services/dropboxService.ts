@@ -1,6 +1,7 @@
 import { DROPBOX_CONFIG } from "../config/dropbox";
 import { DROPBOX_PROXY, USE_DROPBOX_PROXY } from "../config/runtime";
 import { DropboxTokenManager } from "../utils/dropboxTokenManager";
+import { compressBlobForDisplay } from "../utils/imageCompression";
 
 interface DropboxFileEntry {
   ".tag": string;
@@ -25,7 +26,7 @@ export interface DropboxResponse {
     parent_shared_folder_id?: string;
     modified_by?: string;
   };
-  // Campi aggiunti per compatibilità con CloudinaryResponse
+  // Campi standardizzati per l'interfaccia Photo
   public_id: string;
   secure_url: string;
   width: number;
@@ -362,25 +363,33 @@ export class DropboxService {
   /**
    * Scarica un'immagine da Dropbox e restituisce un blob URL (con cache)
    */
-  static async getImageBlob(filePath: string): Promise<string> {
+  static async getImageBlob(
+    filePath: string,
+    options: { variant?: "full" | "display" | "thumb" } = {}
+  ): Promise<string> {
+    const variant = options.variant ?? "display";
+    const cacheKey = variant === "full" ? filePath : `${filePath}:${variant}`;
+
     try {
       // Controlla se abbiamo già questa immagine in cache
-      const cached = this.blobCache.get(filePath);
+      const cached = this.blobCache.get(cacheKey);
       const now = Date.now();
 
       if (cached && now - cached.timestamp < this.BLOB_CACHE_DURATION) {
-        console.log(`📦 Cache hit per: ${filePath}`);
+        console.log(`📦 Cache hit per: ${cacheKey}`);
         return cached.url;
       }
 
       // Se la cache è scaduta, rimuovi l'entry e revoca il blob URL
       if (cached) {
-        console.log(`🗑️ Cache scaduta per: ${filePath}, rimuovo...`);
+        console.log(`🗑️ Cache scaduta per: ${cacheKey}, rimuovo...`);
         URL.revokeObjectURL(cached.url);
-        this.blobCache.delete(filePath);
+        this.blobCache.delete(cacheKey);
       }
 
-      console.log(`⬇️ Scaricando nuova immagine: ${filePath}`);
+      console.log(`⬇️ Scaricando nuova immagine: ${filePath} (${variant})`);
+
+      let blob: Blob | null = null;
 
       if (USE_DROPBOX_PROXY) {
         const response = await fetch(
@@ -391,40 +400,45 @@ export class DropboxService {
           return "";
         }
 
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        this.blobCache.set(filePath, { url: blobUrl, timestamp: now });
-        return blobUrl;
+        blob = await response.blob();
+      } else {
+        const response = await fetch(
+          `${DropboxService.CONTENT_API_URL}/files/download`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${DROPBOX_CONFIG.ACCESS_TOKEN}`,
+              "Dropbox-API-Arg": JSON.stringify({ path: filePath }),
+            },
+          }
+        );
+
+        if (!response.ok) {
+          console.error(`Errore nel download dell'immagine: ${response.status}`);
+          return "";
+        }
+
+        blob = await response.blob();
       }
 
-      const response = await fetch(
-        `${DropboxService.CONTENT_API_URL}/files/download`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${DROPBOX_CONFIG.ACCESS_TOKEN}`,
-            "Dropbox-API-Arg": JSON.stringify({ path: filePath }),
-          },
-        }
-      );
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-
-        // Salva in cache
-        this.blobCache.set(filePath, {
-          url: blobUrl,
-          timestamp: now,
-        });
-
-        console.log(`💾 Immagine salvata in cache: ${filePath}`);
-
-        return blobUrl;
-      } else {
-        console.error(`Errore nel download dell'immagine: ${response.status}`);
+      if (!blob) {
         return "";
       }
+
+      const optimizedBlob =
+        variant === "full"
+          ? blob
+          : await compressBlobForDisplay(
+              blob,
+              variant === "thumb" ? "thumb" : "display"
+            );
+
+      const blobUrl = URL.createObjectURL(optimizedBlob);
+      this.blobCache.set(cacheKey, { url: blobUrl, timestamp: now });
+
+      console.log(`💾 Immagine salvata in cache: ${cacheKey}`);
+
+      return blobUrl;
     } catch (error) {
       console.error("Errore nel download dell'immagine:", error);
       return "";
@@ -910,7 +924,6 @@ Leggi DROPBOX_401_FIX.md per i dettagli completi.
    * Genera URL ottimizzato per la visualizzazione (compatibilità)
    */
   static getOptimizedUrl(publicId: string): string {
-    // Dropbox non supporta trasformazioni on-the-fly come Cloudinary
     // Restituisce l'URL originale
     return publicId;
   }

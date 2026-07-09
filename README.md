@@ -76,4 +76,3 @@ Il file `netlify.toml` e `public/_redirects` gestiscono già le route React (`/g
 
 - `DROPBOX_SETUP_GUIDE.md` — setup Dropbox dettagliato
 - `DROPBOX_401_FIX.md` — fix permessi mancanti
-- `CLOUDINARY_SETUP.md` — Cloudinary opzionale come fallback

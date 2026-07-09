@@ -437,6 +437,7 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({ photos }) => {
             className={`story-photo ${
               isTransitioning ? "fade-transition" : ""
             }`}
+            variant="display"
             onLoadStart={handlePhotoLoadStart}
             onLoadComplete={handlePhotoLoadComplete}
           />
@@ -581,6 +582,7 @@ const PhotoStories: React.FC<PhotoStoriesProps> = ({ photos }) => {
                           filePath={photo.publicId}
                           alt={`Thumbnail ${absoluteIndex + 1}`}
                           loading="lazy"
+                          variant="thumb"
                         />
                       ) : (
                         <img

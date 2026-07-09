@@ -8,6 +8,7 @@ interface DropboxImageProps {
   style?: React.CSSProperties;
   onClick?: () => void;
   loading?: "lazy" | "eager";
+  variant?: "full" | "display" | "thumb";
   onLoadComplete?: () => void;
   onLoadStart?: () => void;
 }
@@ -19,6 +20,7 @@ const DropboxImage: React.FC<DropboxImageProps> = ({
   style,
   onClick,
   loading = "lazy",
+  variant = "display",
   onLoadComplete,
   onLoadStart,
 }) => {
@@ -36,8 +38,8 @@ const DropboxImage: React.FC<DropboxImageProps> = ({
         setError("");
         onLoadStart?.();
 
-        console.log(`🖼️ Loading image: ${filePath}`);
-        const blobUrl = await DropboxService.getImageBlob(filePath);
+        console.log(`🖼️ Loading image: ${filePath} (${variant})`);
+        const blobUrl = await DropboxService.getImageBlob(filePath, { variant });
 
         if (isMounted) {
           if (blobUrl) {
@@ -70,7 +72,7 @@ const DropboxImage: React.FC<DropboxImageProps> = ({
       isMounted = false;
       // Non revocare il blob URL qui - è gestito dalla cache globale
     };
-  }, [filePath, onLoadComplete, onLoadStart]);
+  }, [filePath, variant, onLoadComplete, onLoadStart]);
 
   if (isLoading) {
     return (

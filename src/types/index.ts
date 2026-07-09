@@ -4,7 +4,7 @@ export interface Photo {
   timestamp: number;
   uploadedBy?: string;
   description?: string;
-  // Metadati Cloudinary
+  // Metadati immagine
   publicId?: string;
   width?: number;
   height?: number;

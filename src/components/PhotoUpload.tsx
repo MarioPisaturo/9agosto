@@ -20,9 +20,8 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
   const [photoDescription, setPhotoDescription] = useState<string>("");
   const [storageStatus, setStorageStatus] = useState<{
     dropbox: boolean;
-    cloudinary: boolean;
     recommended: string;
-  }>({ dropbox: false, cloudinary: false, recommended: "checking..." });
+  }>({ dropbox: false, recommended: "checking..." });
   const [showSetupGuide, setShowSetupGuide] = useState(false);
 
   // In produzione il token Dropbox resta sul server (Netlify Functions)
@@ -36,7 +35,6 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
         
         setStorageStatus({
           dropbox: availability.dropbox.available,
-          cloudinary: availability.cloudinary.available,
           recommended: recommended.provider,
         });
 
@@ -48,7 +46,6 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
         console.warn("Errore nel controllo dei provider di storage:", error);
         setStorageStatus({
           dropbox: false,
-          cloudinary: false,
           recommended: "none",
         });
         setShowSetupGuide(true);
@@ -103,8 +100,6 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
             setUploadProgress(progress);
             setUploadStatus(`Caricando foto... ${Math.round(progress)}%`);
           },
-          preferredProvider: 'auto',
-          enableFallback: true,
         }
       );
 
@@ -118,10 +113,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
       // Mostra il risultato finale
       if (uploadResults.failed.length === 0) {
         setUploadStatus(
-          `✅ Tutte le ${uploadResults.successful.length} foto caricate con successo!` +
-          (uploadResults.successful[0]?.fallbackUsed 
-            ? " (Usato provider di backup)" 
-            : "")
+          `✅ Tutte le ${uploadResults.successful.length} foto caricate con successo!`
         );
       } else if (uploadResults.successful.length > 0) {
         setUploadStatus(
@@ -203,12 +195,9 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
             <span className={`provider ${storageStatus.dropbox ? 'available' : 'unavailable'}`}>
               {storageStatus.dropbox ? '✅' : '❌'} Dropbox
             </span>
-            <span className={`provider ${storageStatus.cloudinary ? 'available' : 'unavailable'}`}>
-              {storageStatus.cloudinary ? '✅' : '❌'} Cloudinary
-            </span>
             {storageStatus.recommended !== 'none' && (
               <span className="recommended">
-                🚀 Consigliato: {storageStatus.recommended === 'dropbox' ? 'Dropbox' : 'Cloudinary'}
+                🚀 Consigliato: Dropbox
               </span>
             )}
             {storageStatus.recommended === 'none' && (
@@ -225,14 +214,6 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
               </>
             )}
           </div>
-          {storageStatus.recommended !== 'none' && !storageStatus.dropbox && !storageStatus.cloudinary && (
-            <button 
-              className="setup-btn secondary"
-              onClick={() => setShowSetupGuide(true)}
-            >
-              ➕ Aggiungi Provider
-            </button>
-          )}
         </div>
         )}
       </div>
@@ -246,7 +227,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
             type="text"
             value={uploaderName}
             onChange={(e) => setUploaderName(e.target.value)}
-            placeholder="Es. Mario Rossi"
+            placeholder="Es. Mario e Annachiara"
             disabled={isUploading}
             className="name-input"
           />

@@ -1,8 +1,6 @@
-# 🗂️ Guida Completa: Migrazione da Cloudinary a Dropbox
+# 🗂️ Guida Completa: Setup Dropbox
 
 ## 🎯 Perché Dropbox?
-
-Dropbox risolve tutti i problemi di Cloudinary:
 
 - ✅ **Zero problemi CORS**: API progettate per il browser
 - ✅ **Autenticazione semplice**: Solo un Access Token
@@ -75,50 +73,11 @@ VITE_DROPBOX_REDIRECT_URI=http://localhost:5173/auth/dropbox
 
 Il servizio Dropbox usa solo fetch nativo, nessuna dipendenza extra!
 
-## 📋 Passo 3: Aggiornare i Componenti
+## 📋 Passo 3: Architettura dell'App
 
-### 3.1 Aggiorna PhotoUpload.tsx
+L'app usa `StorageService` come layer unificato, che delega a `DropboxService` per upload e recupero foto.
 
-Sostituisci l'import:
-
-```typescript
-// Prima
-import { CloudinaryService } from "../services/cloudinaryService";
-
-// Ora
-import { DropboxService } from "../services/dropboxService";
-```
-
-E sostituisci le chiamate:
-
-```typescript
-// Prima
-const result = await CloudinaryService.uploadImage(
-  file,
-  uploadedBy,
-  onProgress
-);
-
-// Ora
-const result = await DropboxService.uploadImage(file, uploadedBy, onProgress);
-```
-
-### 3.2 Aggiorna PhotoGallery.tsx
-
-```typescript
-// Prima
-import { CloudinaryService } from "../services/cloudinaryService";
-
-// Ora
-import { DropboxService } from "../services/dropboxService";
-
-// E nelle chiamate:
-const photos = await DropboxService.getWeddingPhotos(limit, offset);
-```
-
-### 3.3 Aggiorna PhotoStories.tsx
-
-Stesso principio: sostituisci tutti i riferimenti a `CloudinaryService` con `DropboxService`.
+I componenti principali (`PhotoUpload`, `PhotoGallery`, `PhotoStories`) importano `StorageService` o `DropboxService` direttamente — non è necessario configurare altri provider.
 
 ## 📋 Passo 4: Test e Verifica
 
@@ -211,19 +170,6 @@ Il servizio include un metodo per eliminare foto:
 await DropboxService.deletePhoto("/wedding-photos/photo.jpg");
 ```
 
-## 📊 Confronto Cloudinary vs Dropbox
-
-| Caratteristica       | Cloudinary   | Dropbox             |
-| -------------------- | ------------ | ------------------- |
-| **Setup**            | Complesso    | Semplice            |
-| **CORS**             | Problematico | Zero problemi       |
-| **Autenticazione**   | Complessa    | Un solo token       |
-| **Storage gratuito** | 25GB         | 2GB                 |
-| **Trasformazioni**   | Sì           | No (non necessarie) |
-| **Condivisione**     | Complicata   | Automatica          |
-| **Affidabilità**     | Media        | Alta                |
-| **Documentazione**   | Confusa      | Chiara              |
-
 ## 🎉 Vantaggi per l'App Matrimoniale
 
 1. **Semplicità**: Gli sposi possono accedere alle foto direttamente su Dropbox
@@ -244,6 +190,6 @@ Ma per un'app matrimoniale privata, l'access token fisso è perfetto!
 
 ---
 
-**🎊 Congratulazioni! Hai migrato con successo da Cloudinary a Dropbox!**
+**🎊 Setup completato!**
 
-Le tue foto matrimoniali sono ora gestite da un servizio più semplice, affidabile e senza problemi CORS.
+Le foto matrimoniali sono gestite da Dropbox: semplice, affidabile e senza problemi CORS.

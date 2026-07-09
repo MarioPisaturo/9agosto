@@ -122,10 +122,11 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
                   filePath={photo.publicId}
                   alt={`Wedding photo ${index + 1}`}
                   loading="lazy"
+                  variant="thumb"
                   onClick={async () => {
-                    // Apri immagine a dimensione piena
                     const blobUrl = await DropboxService.getImageBlob(
-                      photo.publicId!
+                      photo.publicId!,
+                      { variant: "full" }
                     );
                     if (blobUrl) {
                       window.open(blobUrl, "_blank");
