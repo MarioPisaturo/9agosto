@@ -323,6 +323,14 @@
         border-color: rgba(139, 115, 85, 0.3);
       }
     }
+
+    &.camera-only {
+      justify-content: center;
+
+      .camera-btn {
+        min-width: 220px;
+      }
+    }
   }
 
   .upload-progress {

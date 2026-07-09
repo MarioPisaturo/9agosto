@@ -5,16 +5,20 @@ import "../styles/Navigation.scss";
 interface NavigationProps {
   activeSection: string;
   photoCount: number;
+  canUpload: boolean;
 }
 
 const Navigation: React.FC<NavigationProps> = ({
   activeSection,
   photoCount,
+  canUpload,
 }) => {
   const navItems = [
     { id: "countdown", label: "Countdown", icon: "💒", path: "/" },
     { id: "gallery", label: "Galleria", icon: "🖼️", path: "/gallery" },
-    { id: "upload", label: "Carica", icon: "📷", path: "/upload" },
+    ...(canUpload
+      ? [{ id: "upload", label: "Carica", icon: "📷", path: "/upload" }]
+      : []),
     { id: "stories", label: "Stories", icon: "✨", path: "/stories" },
   ];
 

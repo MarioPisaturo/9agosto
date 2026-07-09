@@ -16,6 +16,7 @@ import type { Photo, WeddingInfo } from "./types";
 import { DropboxService } from "./services/dropboxService";
 import { samplePhotos } from "./utils/samplePhotos";
 import { useCacheManager } from "./hooks/useCacheManager";
+import { useUploadAccess } from "./hooks/useUploadAccess";
 import CacheDebug from "./components/CacheDebug";
 import "./styles/App.scss";
 
@@ -28,6 +29,7 @@ const AppContent: React.FC = () => {
   const [totalPhotosCount, setTotalPhotosCount] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const navigate = useNavigate();
+  const { canUpload } = useUploadAccess();
 
   // Gestione automatica della cache
   useCacheManager();
@@ -127,7 +129,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <Layout photoCount={photos.length}>
+    <Layout photoCount={photos.length} canUpload={canUpload}>
       {/* Debug della cache solo in development */}
       <CacheDebug isVisible={import.meta.env.DEV} />
 
@@ -159,7 +161,13 @@ const AppContent: React.FC = () => {
         />
         <Route
           path="/upload"
-          element={<UploadPage onPhotoUpload={handlePhotoUpload} />}
+          element={
+            canUpload ? (
+              <UploadPage onPhotoUpload={handlePhotoUpload} />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
         />
         <Route
           path="/stories"

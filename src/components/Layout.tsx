@@ -6,10 +6,15 @@ import { hasFullscreenParam } from "../utils/fullscreenUtils";
 
 interface LayoutProps {
   photoCount: number;
+  canUpload: boolean;
   children?: React.ReactNode;
 }
 
-const Layout: React.FC<LayoutProps> = ({ photoCount, children }) => {
+const Layout: React.FC<LayoutProps> = ({
+  photoCount,
+  canUpload,
+  children,
+}) => {
   const location = useLocation();
   const isFullscreen = hasFullscreenParam();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -87,6 +92,7 @@ const Layout: React.FC<LayoutProps> = ({ photoCount, children }) => {
         <Navigation
           activeSection={getActiveSection()}
           photoCount={photoCount}
+          canUpload={canUpload}
         />
       )}
 

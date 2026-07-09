@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import type { Photo } from "../types";
 import { StorageService } from "../services/storageService";
 import { USE_DROPBOX_PROXY } from "../config/runtime";
+import { UPLOAD_UI_CONFIG } from "../config/upload";
 import { isImageFile } from "../utils/imageCompression";
 import StorageSetupGuide from "./StorageSetupGuide";
 import "../styles/PhotoUpload.scss";
@@ -11,6 +12,7 @@ interface PhotoUploadProps {
 }
 
 const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
+  const galleryEnabled = UPLOAD_UI_CONFIG.galleryEnabled;
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -161,15 +163,16 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
 
   return (
     <div className="photo-upload-container">
-      {/* Input per la galleria */}
-      <input
-        type="file"
-        ref={galleryInputRef}
-        onChange={handleFileSelect}
-        accept="image/*"
-        multiple
-        style={{ display: "none" }}
-      />
+      {galleryEnabled && (
+        <input
+          type="file"
+          ref={galleryInputRef}
+          onChange={handleFileSelect}
+          accept="image/*"
+          multiple
+          style={{ display: "none" }}
+        />
+      )}
 
       {/* Input per la fotocamera */}
       <input
@@ -184,7 +187,9 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
       <div className="upload-header">
         <h2>Condividi i tuoi ricordi</h2>
         <p>
-          Carica le foto del matrimonio per condividerle con tutti gli ospiti!
+          {galleryEnabled
+            ? "Carica le foto del matrimonio per condividerle con tutti gli ospiti!"
+            : "Scatta una foto al momento e condividila subito con tutti gli ospiti!"}
         </p>
         
         {/* Stato storage solo in sviluppo locale */}
@@ -253,7 +258,11 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
         </div>
       </div>
 
-      <div className="upload-buttons">
+      <div
+        className={`upload-buttons ${
+          galleryEnabled ? "" : "camera-only"
+        }`}
+      >
         <button
           className="upload-btn camera-btn"
           onClick={triggerCamera}
@@ -263,14 +272,16 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
           <span className="btn-text">Scatta Foto</span>
         </button>
 
-        <button
-          className="upload-btn gallery-btn"
-          onClick={triggerGallery}
-          disabled={isUploading}
-        >
-          <span className="btn-icon">🖼️</span>
-          <span className="btn-text">Galleria</span>
-        </button>
+        {galleryEnabled && (
+          <button
+            className="upload-btn gallery-btn"
+            onClick={triggerGallery}
+            disabled={isUploading}
+          >
+            <span className="btn-icon">🖼️</span>
+            <span className="btn-text">Galleria</span>
+          </button>
+        )}
       </div>
 
       {/* Progresso del caricamento */}
@@ -313,9 +324,16 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ onPhotoUpload }) => {
           <li>
             🗜️ <strong>Le foto vengono ottimizzate automaticamente</strong>
           </li>
-          <li>
-            📱 <strong>Carica foto di qualsiasi dimensione</strong>
-          </li>
+          {galleryEnabled && (
+            <li>
+              📱 <strong>Carica foto di qualsiasi dimensione</strong>
+            </li>
+          )}
+          {!galleryEnabled && (
+            <li>
+              📷 <strong>Solo foto scattate al momento</strong>
+            </li>
+          )}
           <li>
             ☁️ <strong>Le foto sono condivise con tutti gli ospiti</strong>
           </li>
