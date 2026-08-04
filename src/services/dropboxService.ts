@@ -590,11 +590,13 @@ export class DropboxService {
   }
 
   /**
-   * Ottieni le foto del matrimonio da Dropbox con paginazione (via photos-manifest.json)
+   * Ottieni le foto del matrimonio da Dropbox con paginazione (via photos-manifest.json).
+   * Su ogni chiamata allinea il manifest con i file reali in cartella.
    */
   static async getWeddingPhotos(
     limit: number = 100,
-    offset: number = 0
+    offset: number = 0,
+    options: { refresh?: boolean } = {}
   ): Promise<{
     photos: DropboxResponse[];
     hasMore: boolean;
@@ -602,8 +604,11 @@ export class DropboxService {
     currentPage: number;
     totalPages: number;
   }> {
+    const refresh = Boolean(options.refresh);
     console.log(
-      `🔄 Recuperando foto da manifest (limite: ${limit}, offset: ${offset})...`
+      `🔄 Recuperando foto da manifest (limite: ${limit}, offset: ${offset}${
+        refresh ? ", refresh" : ""
+      })...`
     );
 
     try {
@@ -614,9 +619,13 @@ export class DropboxService {
       let hasMore = false;
 
       if (USE_DROPBOX_PROXY) {
-        const response = await fetch(
-          `${DROPBOX_PROXY.list}?limit=${limit}&offset=${offset}`
-        );
+        const params = new URLSearchParams({
+          limit: String(limit),
+          offset: String(offset),
+        });
+        if (refresh) params.set("refresh", "1");
+
+        const response = await fetch(`${DROPBOX_PROXY.list}?${params}`);
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -637,18 +646,26 @@ export class DropboxService {
       } else {
         const result = await PhotosManifestService.getPaginatedPhotos(
           limit,
-          offset
+          offset,
+          DROPBOX_CONFIG.FOLDER,
+          { refresh }
         );
         entries = result.entries;
         totalCount = result.totalCount;
         hasMore = result.hasMore;
       }
 
+      if (totalCount === 0) {
+        DropboxService.clearAllBlobCache();
+      } else {
+        PhotosManifestService.invalidateCache();
+      }
+
       const photos = entries.map((entry) =>
         DropboxService.manifestEntryToPhoto(entry)
       );
-      const totalPages = Math.max(1, Math.ceil(totalCount / limit));
-      const currentPage = Math.floor(offset / limit) + 1;
+      const totalPages = Math.max(1, Math.ceil(totalCount / Math.max(limit, 1)));
+      const currentPage = Math.floor(offset / Math.max(limit, 1)) + 1;
 
       console.log(
         `✅ Caricate ${photos.length} foto da manifest (pagina ${currentPage}/${totalPages}, totale ${totalCount})`

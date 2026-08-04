@@ -186,10 +186,23 @@ async function listImageEntries(folder) {
   );
 }
 
-export async function buildManifestFromFolder(folder = getDropboxFolder()) {
-  const entries = await listImageEntries(folder);
+function manifestMatchesFolder(manifest, folderEntries) {
+  const manifestPaths = new Set(
+    (manifest?.photos || []).map((photo) => photo.path_lower)
+  );
+  const folderPaths = new Set(folderEntries.map((entry) => entry.path_lower));
 
-  const photos = await Promise.all(
+  if (manifestPaths.size !== folderPaths.size) return false;
+
+  for (const path of folderPaths) {
+    if (!manifestPaths.has(path)) return false;
+  }
+
+  return true;
+}
+
+async function entriesToManifestPhotos(entries) {
+  return Promise.all(
     entries.map(async (entry) => {
       const legacy = await loadLegacyMetadata(entry.path_lower);
       return {
@@ -205,36 +218,103 @@ export async function buildManifestFromFolder(folder = getDropboxFolder()) {
       };
     })
   );
+}
 
+export async function buildManifestFromFolder(folder = getDropboxFolder()) {
+  const entries = await listImageEntries(folder);
+  const photos = await entriesToManifestPhotos(entries);
+  return writeManifest(folder, { photos });
+}
+
+/**
+ * Sincronizza il manifest con i file reali in cartella.
+ * Non sovrascrive mai un manifest con foto se list_folder torna vuoto
+ * (evita di azzerare tutto per un errore API / token).
+ */
+export async function reconcileManifest(
+  folder = getDropboxFolder(),
+  { force = false } = {}
+) {
+  if (force) {
+    invalidateManifestCache();
+  }
+
+  let existing = null;
+  try {
+    // Sempre da Dropbox, non dalla cache in-memory (può essere uno stato vuoto stale)
+    if (force || cachedManifest) {
+      invalidateManifestCache();
+    }
+    existing = await readManifest(folder);
+  } catch (error) {
+    console.warn("Impossibile leggere photos-manifest.json:", error);
+  }
+
+  let folderEntries;
+  try {
+    folderEntries = await listImageEntries(folder);
+  } catch (error) {
+    console.warn("list_folder fallita, uso il manifest esistente:", error);
+    if (existing) return existing;
+    throw error;
+  }
+
+  const manifestCount = existing?.photos?.length ?? 0;
+
+  // Protezione: non cancellare un manifest pieno se la listing è vuota
+  if (folderEntries.length === 0 && manifestCount > 0) {
+    console.warn(
+      `list_folder vuota ma manifest ha ${manifestCount} foto: tengo il manifest`
+    );
+    return existing;
+  }
+
+  if (!force && existing && manifestMatchesFolder(existing, folderEntries)) {
+    return existing;
+  }
+
+  invalidateManifestCache();
+  const photos = await entriesToManifestPhotos(folderEntries);
   return writeManifest(folder, { photos });
 }
 
 export async function ensureManifest(folder = getDropboxFolder()) {
-  const existing = await readManifest(folder);
-  if (existing) return existing;
-  return buildManifestFromFolder(folder);
+  return reconcileManifest(folder);
 }
 
 export async function getPaginatedPhotos(
   folder = getDropboxFolder(),
   limit = 20,
-  offset = 0
+  offset = 0,
+  { refresh = false } = {}
 ) {
   const safeLimit = Math.max(1, Math.min(limit, 100));
   const safeOffset = Math.max(0, offset);
 
-  let manifest = await readManifest(folder);
-  if (!manifest) {
-    manifest = await buildManifestFromFolder(folder);
+  try {
+    const manifest = await reconcileManifest(folder, { force: refresh });
+    const totalCount = manifest.photos.length;
+    const entries = manifest.photos.slice(safeOffset, safeOffset + safeLimit);
+
+    return {
+      entries,
+      totalCount,
+      hasMore: safeOffset + safeLimit < totalCount,
+      source: "manifest",
+    };
+  } catch (error) {
+    // Ultimo fallback: prova solo il download del manifest
+    invalidateManifestCache();
+    const existing = await readManifest(folder);
+    if (existing) {
+      const totalCount = existing.photos.length;
+      return {
+        entries: existing.photos.slice(safeOffset, safeOffset + safeLimit),
+        totalCount,
+        hasMore: safeOffset + safeLimit < totalCount,
+        source: "manifest",
+      };
+    }
+    throw error;
   }
-
-  const totalCount = manifest.photos.length;
-  const entries = manifest.photos.slice(safeOffset, safeOffset + safeLimit);
-
-  return {
-    entries,
-    totalCount,
-    hasMore: safeOffset + safeLimit < totalCount,
-    source: "manifest",
-  };
 }

@@ -93,8 +93,11 @@ export class PhotosManifestService {
     cachedManifest = null;
   }
 
-  static async readManifest(folder = getFolder()): Promise<PhotosManifest | null> {
-    if (cachedManifest) return cachedManifest;
+  static async readManifest(
+    folder = getFolder(),
+    options: { skipCache?: boolean } = {}
+  ): Promise<PhotosManifest | null> {
+    if (!options.skipCache && cachedManifest) return cachedManifest;
 
     const raw = await downloadTextFile(getManifestPath(folder));
     if (!raw) return null;
@@ -214,49 +217,127 @@ export class PhotosManifestService {
 
   static async buildFromFolder(folder = getFolder()): Promise<PhotosManifest> {
     const entries = await this.listImageEntries(folder);
+    return this.writeManifestFromEntries(folder, entries);
+  }
+
+  private static async writeManifestFromEntries(
+    folder: string,
+    entries: Array<{
+      path_lower: string;
+      path_display?: string;
+      name: string;
+      size: number;
+      server_modified: string;
+      content_hash?: string;
+    }>
+  ): Promise<PhotosManifest> {
     const photos = await Promise.all(
-      entries.map(
-        async (entry: {
-          path_lower: string;
-          path_display?: string;
-          name: string;
-          size: number;
-          server_modified: string;
-          content_hash?: string;
-        }) => {
-          const legacy = await this.loadLegacyMetadata(entry.path_lower);
-          return {
-            path_lower: entry.path_lower,
-            path_display: entry.path_display || entry.path_lower,
-            name: entry.name,
-            size: entry.size,
-            server_modified: entry.server_modified,
-            content_hash: entry.content_hash,
-            description: legacy?.description,
-            uploadedBy: legacy?.uploadedBy,
-            uploadedAt: legacy?.uploadedAt,
-          };
-        }
-      )
+      entries.map(async (entry) => {
+        const legacy = await this.loadLegacyMetadata(entry.path_lower);
+        return {
+          path_lower: entry.path_lower,
+          path_display: entry.path_display || entry.path_lower,
+          name: entry.name,
+          size: entry.size,
+          server_modified: entry.server_modified,
+          content_hash: entry.content_hash,
+          description: legacy?.description,
+          uploadedBy: legacy?.uploadedBy,
+          uploadedAt: legacy?.uploadedAt,
+        };
+      })
     );
 
     return this.writeManifest(folder, { ...createEmptyManifest(), photos });
   }
 
-  static async ensureManifest(folder = getFolder()) {
+  private static manifestMatchesFolder(
+    manifest: PhotosManifest,
+    folderEntries: Array<{ path_lower: string }>
+  ): boolean {
+    const manifestPaths = new Set(
+      manifest.photos.map((photo) => photo.path_lower)
+    );
+    const folderPaths = new Set(folderEntries.map((entry) => entry.path_lower));
+
+    if (manifestPaths.size !== folderPaths.size) return false;
+    for (const path of folderPaths) {
+      if (!manifestPaths.has(path)) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Allinea photos-manifest.json con i file reali in Dropbox.
+   * Non azzera mai un manifest pieno se list_folder torna vuota.
+   */
+  static async reconcileManifest(
+    folder = getFolder(),
+    options: { force?: boolean } = {}
+  ): Promise<PhotosManifest> {
     if (USE_DROPBOX_PROXY) {
-      throw new Error("ensureManifest non disponibile con proxy");
+      throw new Error("reconcileManifest non disponibile con proxy");
     }
 
-    const existing = await this.readManifest(folder);
-    if (existing) return existing;
-    return this.buildFromFolder(folder);
+    if (options.force) {
+      this.invalidateCache();
+    }
+
+    let existing: PhotosManifest | null = null;
+    try {
+      // Sempre rileggi da Dropbox: la cache in-memory può restare su {photos:[]} stale
+      existing = await this.readManifest(folder, { skipCache: true });
+    } catch (error) {
+      console.warn("Impossibile leggere photos-manifest.json:", error);
+    }
+
+    let folderEntries: Array<{
+      path_lower: string;
+      path_display?: string;
+      name: string;
+      size: number;
+      server_modified: string;
+      content_hash?: string;
+    }>;
+
+    try {
+      folderEntries = await this.listImageEntries(folder);
+    } catch (error) {
+      console.warn("list_folder fallita, uso il manifest esistente:", error);
+      if (existing) return existing;
+      throw error;
+    }
+
+    const manifestCount = existing?.photos.length ?? 0;
+
+    if (folderEntries.length === 0 && manifestCount > 0) {
+      console.warn(
+        `list_folder vuota ma manifest ha ${manifestCount} foto: tengo il manifest`
+      );
+      return existing as PhotosManifest;
+    }
+
+    if (
+      !options.force &&
+      existing &&
+      this.manifestMatchesFolder(existing, folderEntries)
+    ) {
+      return existing;
+    }
+
+    this.invalidateCache();
+    return this.writeManifestFromEntries(folder, folderEntries);
+  }
+
+  static async ensureManifest(folder = getFolder()) {
+    return this.reconcileManifest(folder);
   }
 
   static async getPaginatedPhotos(
     limit = 20,
     offset = 0,
-    folder = getFolder()
+    folder = getFolder(),
+    options: { refresh?: boolean } = {}
   ): Promise<PaginatedPhotosResult> {
     if (USE_DROPBOX_PROXY) {
       throw new Error("Usa DropboxService.getWeddingPhotos con proxy");
@@ -265,19 +346,33 @@ export class PhotosManifestService {
     const safeLimit = Math.max(1, Math.min(limit, 100));
     const safeOffset = Math.max(0, offset);
 
-    let manifest = await this.readManifest(folder);
-    if (!manifest) {
-      manifest = await this.buildFromFolder(folder);
+    try {
+      const manifest = await this.reconcileManifest(folder, {
+        force: options.refresh,
+      });
+
+      const totalCount = manifest.photos.length;
+      const entries = manifest.photos.slice(safeOffset, safeOffset + safeLimit);
+
+      return {
+        entries,
+        totalCount,
+        hasMore: safeOffset + safeLimit < totalCount,
+        source: "manifest",
+      };
+    } catch (error) {
+      this.invalidateCache();
+      const existing = await this.readManifest(folder, { skipCache: true });
+      if (existing) {
+        const totalCount = existing.photos.length;
+        return {
+          entries: existing.photos.slice(safeOffset, safeOffset + safeLimit),
+          totalCount,
+          hasMore: safeOffset + safeLimit < totalCount,
+          source: "manifest",
+        };
+      }
+      throw error;
     }
-
-    const totalCount = manifest.photos.length;
-    const entries = manifest.photos.slice(safeOffset, safeOffset + safeLimit);
-
-    return {
-      entries,
-      totalCount,
-      hasMore: safeOffset + safeLimit < totalCount,
-      source: "manifest",
-    };
   }
 }

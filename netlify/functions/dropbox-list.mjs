@@ -21,8 +21,11 @@ export async function handler(event) {
       event.queryStringParameters?.offset || "0",
       10
     );
+    const refresh =
+      event.queryStringParameters?.refresh === "1" ||
+      event.queryStringParameters?.refresh === "true";
 
-    const result = await getPaginatedPhotos(folder, limit, offset);
+    const result = await getPaginatedPhotos(folder, limit, offset, { refresh });
     return jsonResponse(200, result);
   } catch (error) {
     return jsonResponse(500, {
