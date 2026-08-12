@@ -216,8 +216,12 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         <PhotoLightbox
           photos={photos}
           activeIndex={lightboxIndex}
+          hasMorePhotos={hasMorePhotos}
+          isLoadingMore={isLoadingMore}
+          totalCount={totalCount}
           onClose={() => setLightboxIndex(null)}
           onChangeIndex={setLightboxIndex}
+          onLoadMore={onLoadMore}
         />
       )}
     </div>

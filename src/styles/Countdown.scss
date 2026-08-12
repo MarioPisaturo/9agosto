@@ -10,6 +10,7 @@
   align-items: center;
   position: relative;
   overflow: hidden;
+  font-family: "Cormorant Garamond", serif;
 
   &::before {
     content: '';
@@ -32,7 +33,7 @@
       font-weight: 400;
       margin: 0 0 1rem 0;
       text-shadow: 2px 2px 4px rgba(139, 69, 19, 0.1);
-      font-family: 'Playfair Display', serif;
+      font-family: "Cormorant Garamond", serif;
       color: #6b4423;
 
       @media (max-width: 768px) {
@@ -45,7 +46,7 @@
       opacity: 0.8;
       margin: 0;
       font-style: italic;
-      font-family: 'Cormorant Garamond', serif;
+      font-family: "Cormorant Garamond", serif;
       color: #8b4513;
       font-weight: 400;
     }
@@ -87,7 +88,7 @@
         font-weight: 600;
         line-height: 1;
         margin-bottom: 0.5rem;
-        font-family: 'Playfair Display', serif;
+        font-family: "Cormorant Garamond", serif;
         color: #6b4423;
 
         @media (max-width: 768px) {
@@ -100,7 +101,7 @@
         opacity: 0.7;
         text-transform: uppercase;
         letter-spacing: 1px;
-        font-family: 'Inter', sans-serif;
+        font-family: "Cormorant Garamond", serif;
         color: #8b4513;
         font-weight: 500;
 
@@ -116,6 +117,7 @@
       opacity: 0.6;
       animation: blink 2s infinite;
       color: #8b4513;
+      font-family: "Cormorant Garamond", serif;
 
       @media (max-width: 768px) {
         display: none;
@@ -133,7 +135,7 @@
       opacity: 0.8;
       text-transform: capitalize;
       font-weight: 400;
-      font-family: 'Cormorant Garamond', serif;
+      font-family: "Cormorant Garamond", serif;
       color: #8b4513;
 
       @media (max-width: 768px) {
@@ -165,6 +167,7 @@
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    font-family: "Cormorant Garamond", serif;
     box-shadow: 0 4px 16px rgba(212, 175, 55, 0.35);
   }
 
@@ -176,7 +179,7 @@
     font-size: 1.05rem;
     font-style: italic;
     color: #8b6914;
-    font-family: 'Cormorant Garamond', serif;
+    font-family: "Cormorant Garamond", serif;
   }
 }
 
@@ -193,6 +196,7 @@
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    font-family: "Cormorant Garamond", serif;
     box-shadow: 0 4px 16px rgba(212, 175, 55, 0.35);
   }
 
@@ -201,13 +205,14 @@
     z-index: 1;
     max-width: 560px;
     margin-bottom: 1.5rem;
+    font-family: "Cormorant Garamond", serif;
 
     .celebration-lead {
       margin: 0 0 1rem;
       font-size: 1.2rem;
       line-height: 1.6;
       color: #8b4513;
-      font-family: 'Cormorant Garamond', serif;
+      font-family: "Cormorant Garamond", serif;
     }
 
     .celebration-venue,
@@ -216,6 +221,7 @@
       font-size: 1rem;
       color: #8b4513;
       opacity: 0.8;
+      font-family: "Cormorant Garamond", serif;
     }
   }
 
@@ -226,6 +232,7 @@
     font-size: 1rem;
     color: #9a7b1a;
     font-weight: 500;
+    font-family: "Cormorant Garamond", serif;
   }
 
   .celebration-actions {
@@ -246,6 +253,7 @@
     font-size: 1rem;
     font-weight: 600;
     text-decoration: none;
+    font-family: "Cormorant Garamond", serif;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 
     &.primary {
@@ -306,6 +314,7 @@
   flex-direction: column;
   gap: 0.5rem;
   margin-top: 0.75rem;
+  font-family: "Cormorant Garamond", serif;
 
   .wedding-location {
     margin: 0;
@@ -313,7 +322,7 @@
     line-height: 1.5;
     color: #8b4513;
     opacity: 0.85;
-    font-family: 'Cormorant Garamond', serif;
+    font-family: "Cormorant Garamond", serif;
 
     &.church {
       font-weight: 500;
