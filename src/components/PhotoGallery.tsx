@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import type { Photo } from "../types/";
 import { formatItalyPhotoTimestamp } from "../utils/dateTime";
-import { DropboxService } from "../services/dropboxService";
 import { createFullscreenLink } from "../utils/fullscreenUtils";
 import DropboxImage from "./DropboxImage";
+import PhotoLightbox from "./PhotoLightbox";
 import "../styles/PhotoGallery.scss";
 import "../styles/DropboxImage.scss";
 
@@ -25,8 +25,8 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   onLoadMore,
 }) => {
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  // Auto-load more photos when scrolling near the end
   const handleIntersection = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       const [entry] = entries;
@@ -40,7 +40,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   useEffect(() => {
     const observer = new IntersectionObserver(handleIntersection, {
       root: null,
-      rootMargin: "200px", // Carica quando si è a 200px dalla fine
+      rootMargin: "200px",
       threshold: 0.1,
     });
 
@@ -107,7 +107,6 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
                   );
                 })
                 .catch(() => {
-                  // Fallback per browser che non supportano clipboard API
                   const textArea = document.createElement("textarea");
                   textArea.value = fullscreenUrl;
                   document.body.appendChild(textArea);
@@ -130,62 +129,57 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
       </div>
 
       <div className="gallery-grid">
-        {photos.map((photo, index) => {
-          return (
-            <div
-              key={photo.id}
-              className={`gallery-item item-${(index % 4) + 1}`}
-            >
-              {photo.publicId ? (
-                <DropboxImage
-                  filePath={photo.publicId}
-                  alt={`Wedding photo ${index + 1}`}
-                  loading="lazy"
-                  variant="thumb"
-                  onClick={async () => {
-                    const blobUrl = await DropboxService.getImageBlob(
-                      photo.publicId!,
-                      { variant: "display" }
-                    );
-                    if (blobUrl) {
-                      window.open(blobUrl, "_blank");
-                    }
-                  }}
-                  style={{ cursor: "pointer" }}
-                />
-              ) : (
-                <img
-                  src={photo.url}
-                  alt={`Wedding photo ${index + 1}`}
-                  loading="lazy"
-                  onClick={() => window.open(photo.url, "_blank")}
-                  style={{ cursor: "pointer" }}
-                />
-              )}
-              <div className="photo-overlay">
-                <div className="photo-meta">
-                  <span className="photo-time">
-                    {formatItalyPhotoTimestamp(photo.timestamp)}
+        {photos.map((photo, index) => (
+          <div
+            key={photo.id}
+            className={`gallery-item item-${(index % 4) + 1}`}
+            onClick={() => setLightboxIndex(index)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setLightboxIndex(index);
+              }
+            }}
+          >
+            {photo.publicId ? (
+              <DropboxImage
+                filePath={photo.publicId}
+                alt={`Wedding photo ${index + 1}`}
+                loading="lazy"
+                variant="thumb"
+                style={{ cursor: "pointer" }}
+              />
+            ) : (
+              <img
+                src={photo.url}
+                alt={`Wedding photo ${index + 1}`}
+                loading="lazy"
+                style={{ cursor: "pointer" }}
+              />
+            )}
+            <div className="photo-overlay">
+              <div className="photo-meta">
+                <span className="photo-time">
+                  {formatItalyPhotoTimestamp(photo.timestamp)}
+                </span>
+                {photo.uploadedBy && (
+                  <span className="photo-author">📸 {photo.uploadedBy}</span>
+                )}
+                {photo.description && (
+                  <span className="photo-description">
+                    💬 {photo.description}
                   </span>
-                  {photo.uploadedBy && (
-                    <span className="photo-author">📸 {photo.uploadedBy}</span>
-                  )}
-                  {photo.description && (
-                    <span className="photo-description">
-                      💬 {photo.description}
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
 
-      {/* Auto-load trigger e pulsante manuale */}
       {hasMorePhotos && (
         <>
-          {/* Elemento invisibile per l'auto-loading */}
           <div ref={loadMoreRef} className="auto-load-trigger" />
 
           <div className="load-more-section">
@@ -209,7 +203,6 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         </>
       )}
 
-      {/* Messaggio quando tutte le foto sono caricate */}
       {!hasMorePhotos && photos.length > 100 && (
         <div className="all-loaded-section">
           <p>🎉 Hai visto tutte le {photos.length} foto!</p>
@@ -217,6 +210,15 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
             Torna più tardi per vedere se sono state aggiunte nuove foto
           </small>
         </div>
+      )}
+
+      {lightboxIndex !== null && (
+        <PhotoLightbox
+          photos={photos}
+          activeIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onChangeIndex={setLightboxIndex}
+        />
       )}
     </div>
   );

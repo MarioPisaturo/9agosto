@@ -45,6 +45,7 @@ const MaintenanceAppContent: React.FC = () => (
           <CountdownPage
             weddingInfo={weddingInfo}
             photos={[]}
+            totalPhotosCount={0}
             isLoadingPhotos={false}
             onLoadSamplePhotos={() => {}}
             maintenanceMode
@@ -153,7 +154,11 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <Layout photoCount={photos.length} hasMorePhotos={hasMorePhotos} canUpload={canUpload}>
+    <Layout
+      photoCount={totalPhotosCount || photos.length}
+      hasMorePhotos={hasMorePhotos}
+      canUpload={canUpload}
+    >
       <DevDebugDock />
 
       <Routes>
@@ -163,6 +168,7 @@ const AppContent: React.FC = () => {
             <CountdownPage
               weddingInfo={weddingInfo}
               photos={photos}
+              totalPhotosCount={totalPhotosCount}
               isLoadingPhotos={isLoadingPhotos}
               onLoadSamplePhotos={loadSamplePhotos}
             />

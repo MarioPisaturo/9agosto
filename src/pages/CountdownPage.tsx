@@ -8,6 +8,7 @@ import type { WeddingInfo, Photo } from "../types";
 interface CountdownPageProps {
   weddingInfo: WeddingInfo;
   photos: Photo[];
+  totalPhotosCount: number;
   isLoadingPhotos: boolean;
   onLoadSamplePhotos: () => void;
   /** Solo countdown: niente caricamento foto, demo, ecc. */
@@ -17,6 +18,7 @@ interface CountdownPageProps {
 const CountdownPage: React.FC<CountdownPageProps> = ({
   weddingInfo,
   photos,
+  totalPhotosCount,
   isLoadingPhotos,
   onLoadSamplePhotos,
   maintenanceMode = false,
@@ -36,7 +38,7 @@ const CountdownPage: React.FC<CountdownPageProps> = ({
         church={weddingInfo.church}
         churchTime={weddingInfo.churchTime}
         venue={weddingInfo.venue}
-        photoCount={maintenanceMode ? 0 : photos.length}
+        photoCount={maintenanceMode ? 0 : totalPhotosCount}
         debugPhase={isActive ? debugPhase : null}
       />
       {!maintenanceMode && isLoadingPhotos && (
